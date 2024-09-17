@@ -721,3 +721,4 @@ def search_emails_list(request):
         )
 
     return render(request, 'emails/email_list.html', {'emails': emails, 'query': query})
+

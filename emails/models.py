@@ -46,3 +46,4 @@ class EmailData(models.Model):
 
     def __str__(self):
         return f"Email from {self.city or 'unknown location'}"
+

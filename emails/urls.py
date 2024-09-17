@@ -6,3 +6,4 @@ urlpatterns = [
     path('search/', search_emails_list, name='search_emails_list'),
 ]
 
+
