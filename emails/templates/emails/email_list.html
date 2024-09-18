@@ -91,12 +91,17 @@ message }}</li>
                                 <select name="typo" class="form-control">
                                     <option value="rifiuti" {% if email.typo == 'rifiuti' %}selected{% endif %}>Rifiuti</option>
                                     <option value="tronchi" {% if email.typo == 'tronchi' %}selected{% endif %}>Tronchi</option>
+                                    <option value="censimento" {% if email.typo == 'censimento' %}selected{% endif %}>Censimento</option>
                                     <option value="piantumazione" {% if email.typo == 'piantumazione' %}selected{% endif %}>Piantumazione</option>
                                 </select>
                                 <button type="submit" class="btn btn-primary btn-sm mt-1">Aggiorna</button>
                             </form>
                         </td>
-                        <td>{{ email.status }}</td>
+                        {% if email.status == '0' %}
+                        <td><span class="badge badge-success">True</span></td>
+                        {% else %}
+                        <td><span class="badge badge-warning">Fals</span></td>
+                        {% endif %}
                         <td>
                             {% if email.latitude and email.longitude %}
                                 {% if email.status == "0" %}

@@ -26,6 +26,8 @@ class EmailData(models.Model):
         choices=TIPO_SCELTE,
         default='rifiuti',  # Opzione predefinita
     )
+    show_image = models.BooleanField(default=False)  # Aggiungi questo campo
+    show_map = models.BooleanField(default=False)    # Aggiungi questo campo
 
     def image_preview(self):
         if self.image_file:
