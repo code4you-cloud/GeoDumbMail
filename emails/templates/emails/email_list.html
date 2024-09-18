@@ -10,7 +10,7 @@
 <body>
     <!-- Navbar -->
     <nav class="navbar navbar-expand-lg navbar-light bg-light">
-        <a class="navbar-brand" href="#">Email Data Viewer</a>
+        <a class="navbar-brand" href="#">Citylog reporting</a>
         <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
             <span class="navbar-toggler-icon"></span>
         </button>
@@ -62,10 +62,10 @@ message }}</li>
                         <th>Address</th>
                         <th>ImageID</th>
                         <th>ImageTime</th>
-                        <!--th>ImageURL</th>
-                        <th>Image Filename</th-->
-                        <th>Type</th>
-                        <th>Map</th>
+                        <!--th>ImageURL</th-->
+                        <th>Preview</th>
+                        <th>Typo</th>
+                        <th>Status</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -77,12 +77,30 @@ message }}</li>
                         <td>{{ email.address }}</td>
                         <td>{{ email.image_id }}</td>
                         <td>{{ email.image_time }}</td>
-                        <!--td><a href="{{ email.image_url }}" target="_blank">{{ email.image_url }}</a></td>
-                        <td>{{ email.image_file }}</td-->
+                        <!--td><a href="{{ email.image_url }}" target="_blank">{{ email.image_url }}</a></td-->
+                        <td style="width: 100px; height: 100px;">
+                            <!--a href="{#{% url 'nome_della_tua_view' email.id %}#}"--> <!-- Collegamento alla view -->
+                                <img src="{{MEDIA_URL}}{{ email.image_url }}" alt="Immagine" style="width: 100%; height: 100%; object-fit: cover;" />
+                            <!--/a-->
+                        </td>
+                        <!--td>{{ email.typo }}</td-->
+                        <!-- Campo typo, con form per la modifica -->
+                        <td>
+                            <form method="POST" action="{% url 'update_typo' email.id %}">
+                                {% csrf_token %}
+                                <select name="typo" class="form-control">
+                                    <option value="rifiuti" {% if email.typo == 'rifiuti' %}selected{% endif %}>Rifiuti</option>
+                                    <option value="tronchi" {% if email.typo == 'tronchi' %}selected{% endif %}>Tronchi</option>
+                                    <option value="piantumazione" {% if email.typo == 'piantumazione' %}selected{% endif %}>Piantumazione</option>
+                                </select>
+                                <button type="submit" class="btn btn-primary btn-sm mt-1">Aggiorna</button>
+                            </form>
+                        </td>
+                        <td>{{ email.status }}</td>
                         <td>
                             {% if email.latitude and email.longitude %}
                                 {% if email.status == "0" %}
-                            {#{% if email.latitude and email.longitude %}#}
+                                {#{% if email.latitude and email.longitude %}#}
                                     <a href="https://maps.citylog.cloud/sample_leaflet.html?lat={{ email.latitude }}&lon={{ email.longitude }}&zoom=15&address={{ email.address }}&image_url=http://192.168.1.60:8000{{ email.image_url }}" target="_blank" class="btn btn-primary btn-sm">Vedi sulla mappa</a>
 
                                 {% elif email.status == "1" %}

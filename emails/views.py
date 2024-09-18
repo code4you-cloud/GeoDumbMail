@@ -21,6 +21,9 @@ from django.core.files.storage import default_storage
 from django.contrib import messages
 from django.db.models import Count, Q
 
+from django.shortcuts import get_object_or_404, redirect
+from django.http import HttpResponseRedirect
+
 from .models import EmailData  # Importa il modello se hai definito uno in models.py
 
 # Configura il logger
@@ -529,12 +532,15 @@ def process_emails(request):
             existing_lat_long = EmailData.objects.filter(
                 latitude=extracted_data['latitude']
             ).filter(longitude=extracted_data['longitude']).first()
+            logger.info("Record updated as existing_lat: %s" % extracted_data['latitude'])
+            logger.info("Record updated as existing_log: %s" % extracted_data['longitude'])
 
             if existing_lat_long:
                 # Aggiorna lo stato se esiste già
-                existing_lat_long.status = 'In elaborazione'
+                existing_lat_long.status = 'In elaborazioneeeeeee'
                 existing_lat_long.save()
-                logger.info(f"Record updated: {existing_lat_long}")
+                logger.info(f"Record updated as existing_lat_log: {existing_lat_long}")
+                logger.info("Record updated as existing_lat_log: %s" % extracted_data['latitude'])
             else:
                 # Crea un nuovo record se non esiste
                 new_email_data = EmailData(
@@ -721,4 +727,13 @@ def search_emails_list(request):
         )
 
     return render(request, 'emails/email_list.html', {'emails': emails, 'query': query})
+
+def update_typo(request, email_id):
+    if request.method == 'POST':
+        email = get_object_or_404(EmailData, id=email_id)
+        # Aggiorna il campo typo con il valore inviato dal form
+        email.typo = request.POST.get('typo')
+        email.save()
+        # Reindirizza alla pagina precedente o a una pagina specifica
+        return HttpResponseRedirect(request.META.get('HTTP_REFERER', '/'))
 

@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Email Data</title>
+    <!-- Import Bootstrap CSS -->
+    <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body>
+    <!-- Navbar -->
+    <nav class="navbar navbar-expand-lg navbar-light bg-light">
+        <a class="navbar-brand" href="#">Email Data Viewer</a>
+        <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="navbarNav">
+            <ul class="navbar-nav ml-auto">
+                <li class="nav-item">
+                    <a class="nav-link" href="#">Home</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="#">Features</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="#">Contact</a>
+                </li>
+            </ul>
+        </div>
+    </nav>
+
+    <div class="container mt-4">
+        <!-- Blocca per mostrare i messaggi di Django -->
+        {% if messages %}
+        <div class="alert alert-info">
+            <ul class="list-unstyled">
+                {% for message in messages %}
+                <li class="alert {{ message.tags }}">{{
+message }}</li>
+                {% endfor %}
+            </ul>
+        </div>
+        {% endif %}
+
+        <h1 class="my-4">Elenco dei dati delle email</h1>
+
+        <div class="table-responsive">
+            <table class="table table-bordered table-hover">
+                <thead class="thead-light">
+                    <tr>
+                        <th>Latitude</th>
+                        <th>Longitude</th>
+                        <th>City</th>
+                        <th>Address</th>
+                        <th>ImageID</th>
+                        <th>ImageTime</th>
+                        <th>ImageURL</th>
+                        <th>Image Filename</th>
+                        <th>Map</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for email in emails %}
+                    <tr>
+                        <td>{{ email.latitude }}</td>
+                        <td>{{ email.longitude }}</td>
+                        <td>{{ email.city }}</td>
+                        <td>{{ email.address }}</td>
+                        <td>{{ email.image_id }}</td>
+                        <td>{{ email.image_time }}</td>
+                        <td><a href="{{ email.image_url }}" target="_blank">{{ email.image_url }}</a></td>
+                        <td>{{ email.image_file }}</td>
+                        <td>
+                            {% if email.latitude and email.longitude %}
+                            <a href="https://maps.citylog.cloud/sample_leaflet.html?lat={{ email.latitude }}&lon={{ email.longitude }}&zoom=15&address={{ email.address }}" target="_blank" class="btn btn-primary btn-sm">Vedi sulla mappa</a>
+                            {% else %}
+                            <span class="text-muted">Nessuna posizione disponibile</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Import Bootstrap JS and dependencies -->
+    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.9.3/dist/umd/popper.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+</body>
+</html>
+
