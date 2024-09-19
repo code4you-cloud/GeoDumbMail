@@ -1,0 +1,15 @@
+[tool.poetry]
+name = "geodumbmail"
+version = "0.1.0"
+description = "Temporary frontend for maps.citylog.cloud"
+authors = ["orfeo321 <revego@code4you.cloud>"]
+license = "MIT"
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "3.12.5"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
