@@ -1,18 +1,26 @@
 [tool.poetry]
 name = "geodumbmail"
 version = "0.1.0"
+<<<<<<< HEAD
 description = "front-end for maps.citylog.cloud"
+=======
+description = "Temporary frontend for maps.citylog.cloud"
+>>>>>>> ebb05edd533ea89d5ea8e86b0bef71c9dbf8c450
 authors = ["orfeo321 <revego@code4you.cloud>"]
 license = "MIT"
 readme = "README.md"
 
 [tool.poetry.dependencies]
+<<<<<<< HEAD
 python = "^3.11.2"
 asgiref = "3.8.1"
 django = "5.1"
 pillow = "10.4.0"
 psycopg2-binary = "2.9.9"
 sqlparse = "0.5.1"
+=======
+python = "3.12.5"
+>>>>>>> ebb05edd533ea89d5ea8e86b0bef71c9dbf8c450
 
 
 [build-system]
