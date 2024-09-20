@@ -80,7 +80,7 @@ message }}</li>
                         <!--td><a href="{{ email.image_url }}" target="_blank">{{ email.image_url }}</a></td-->
                         <td style="width: 100px; height: 100px;">
                             {% if email.status == '0' %}
-                            <a href="https://maps.citylog.cloud/sample_leaflet.html?lat={{ email.latitude }}&lon={{ email.longitude }}&zoom=15&address={{ email.address      }}&image_url=http://192.168.1.60:8000{{ email.image_url }}" target="_blank">
+                            <a href="https://maps.citylog.cloud/sample_leaflet.html?lat={{ email.latitude }}&lon={{ email.longitude }}&zoom=15&address={{ email.address      }}&image_url=https://image.citylog.cloud{{ email.image_url }}" target="_blank">
                                 <img src="{{ email.image_url }}" alt="Immagine" style="width: 100%; height: 100%; object-fit: cover;" />
                             </a>
                             {% else %}
