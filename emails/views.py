@@ -18,6 +18,7 @@ from django.http import HttpResponse
 # new from AI
 from django.core.files.base import ContentFile
 from django.core.files.storage import default_storage
+from django.core.paginator import Paginator
 from django.contrib import messages
 from django.db.models import Count, Q
 
@@ -572,7 +573,14 @@ def process_emails(request):
     mail.logout()
     # Recupera i dati dal database per visualizzarli nella pagina
     emails = EmailData.objects.all().order_by('-image_time').values()
-    return render(request, 'emails/email_list.html', {'emails': emails})
+
+    # Pagination
+    paginator = Paginator(emails, 10)  # Mostra 10 segnalazioni per pagina
+    page_number = request.GET.get('page')  # Ottieni il numero della pagina corrente dalla richiesta
+    page_obj = paginator.get_page(page_number)  # Ottieni l'oggetto della pagina corrente
+
+    #return render(request, 'emails/email_list.html', {'emails': emails})
+    return render(request, 'emails/email_list.html', {'emails': emails, 'page_obj': page_obj})
 
 # Vista principale per elaborare le email
 def process_emails_(request):

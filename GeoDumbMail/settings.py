@@ -28,6 +28,10 @@ DEBUG = True
 
 ALLOWED_HOSTS = ['*']
 
+CSRF_TRUSTED_ORIGINS = [
+    'https://image.citylog.cloud',
+    'https://citylog.cloud',  # Assicurati di aggiungere anche il tuo dominio.
+]
 
 # Application definition
 
