@@ -65,8 +65,15 @@ def parse_email_content(email_message):
     # Directory dove salvare le immagini temporaneamente
     temp_image_save_path = "./temp_images"
 
+    # Verifica se la cartella esiste e stampa le autorizzazioni
+    #print(f"Path exists: {os.path.exists(temp_image_save_path)}")
+    #print(f"Access permissions: {os.access(temp_image_save_path, os.W_OK)}")
+
     if not os.path.exists(temp_image_save_path):
-        os.makedirs(temp_image_save_path)
+        try:
+            os.makedirs(temp_image_save_path)
+        except PermissionError as e:
+            print(f"PermissionError: {e}")
 
     text_content = ""  # Inizializziamo la variabile per memorizzare il contenuto di testo
     image_file_path = None  # Inizializza la variabile per il percorso del file immagine
