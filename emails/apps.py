@@ -5,3 +5,5 @@ class EmailsConfig(AppConfig):
     default_auto_field = "django.db.models.BigAutoField"
     name = "emails"
 
+    #def ready(self):
+    #    import emails.signals  # Importa i segnali per collegarli

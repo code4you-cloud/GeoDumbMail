@@ -10,7 +10,9 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.1/ref/settings/
 """
 
-import os
+import certifi, os
+import logging
+
 from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -143,10 +145,55 @@ STATIC_ROOT = os.path.join(BASE_DIR, 'static')
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
+import ssl  # Aggiungi questa riga per importare il modulo ssl
+#import smtplib
+#import urllib.request
+
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+
 EMAIL_HOST = 'smtp.code4you.cloud'
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
 EMAIL_HOST_USER = 'info@citylog.cloud'
 EMAIL_HOST_PASSWORD = 'Blacking1'
-DEFAULT_FROM_EMAIL = 'report@citylog.cloud'
+DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
+#DEFAULT_FROM_EMAIL = 'report@citylog.cloud'
+
+ssl._create_default_https_context = ssl._create_unverified_context
+
+# Configura il contesto SSL ignorando la verifica per i test
+#ssl_context = ssl.create_default_context()
+#ssl_context.check_hostname = False
+#ssl_context.verify_mode = ssl.CERT_NONE
+
+#os.environ['SSL_CERT_FILE'] = certifi.where()
+#os.environ['SSL_CERT_FILE'] = '/etc/ssl/certs/cacert.pem'
+
+EMAIL_USE_SSL = False
+
+LOGGING = {
+        'version': 1,
+        'disable_existing_loggers': False,
+    'handlers': {
+        'console': {
+                        'class': 'logging.StreamHandler',
+
+        },
+
+    },
+    'loggers': {
+        'django': {
+                        'handlers': ['console'],
+                        'level': 'DEBUG',
+
+        },
+        'django.core.mail': {
+                        'handlers': ['console'],
+                        'level': 'DEBUG',
+                        'propagate': False,
+
+        },
+
+    },
+
+}
