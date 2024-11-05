@@ -171,29 +171,29 @@ ssl._create_default_https_context = ssl._create_unverified_context
 
 EMAIL_USE_SSL = False
 
-LOGGING = {
-        'version': 1,
-        'disable_existing_loggers': False,
-    'handlers': {
-        'console': {
-                        'class': 'logging.StreamHandler',
-
-        },
-
-    },
-    'loggers': {
-        'django': {
-                        'handlers': ['console'],
-                        'level': 'DEBUG',
-
-        },
-        'django.core.mail': {
-                        'handlers': ['console'],
-                        'level': 'DEBUG',
-                        'propagate': False,
-
-        },
-
-    },
-
-}
+#LOGGING = {
+#        'version': 1,
+#        'disable_existing_loggers': False,
+#    'handlers': {
+#        'console': {
+#                        'class': 'logging.StreamHandler',
+#
+#        },
+#
+#    },
+#    'loggers': {
+#        'django': {
+#                        'handlers': ['console'],
+#                        'level': 'DEBUG',
+#
+#        },
+#        'django.core.mail': {
+#                        'handlers': ['console'],
+#                        'level': 'DEBUG',
+#                        'propagate': False,
+#
+#        },
+#
+#    },
+#
+#}
