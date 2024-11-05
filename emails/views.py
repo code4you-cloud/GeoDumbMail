@@ -746,8 +746,22 @@ def search_emails_list(request):
 def update_typo(request, email_id):
     if request.method == 'POST':
         email = get_object_or_404(EmailData, id=email_id)
-        # Aggiorna il campo typo con il valore inviato dal form
+
+	# Aggiorna il campo typo con il valore inviato dal form
         email.typo = request.POST.get('typo')
+
+	# Controllo se l'utente ha selezionato "Rimuovi"
+        if email.typo == 'rimuovi':
+            # Rimuovi il file immagine associato, se esiste
+            if email.image_file and os.path.isfile(email.image_file.path):
+                os.remove(email.image_file.path)
+
+            # Elimina la segnalazione
+            email.delete()
+            #messages.success(request, f"Segnalazione e immagine associate rimosse con successo.")
+            messages.success(request, f"Segnalazione per {email.city} ({email.status}) e immagine con ID {email.image_id} rimosse con successo.")
+            return HttpResponseRedirect(request.META.get('HTTP_REFERER', '/'))
+
         email.save()
         # Reindirizza alla pagina precedente o a una pagina specifica
         return HttpResponseRedirect(request.META.get('HTTP_REFERER', '/'))
