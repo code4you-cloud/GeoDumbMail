@@ -9,18 +9,27 @@ description = "Temporary frontend for maps.citylog.cloud"
 authors = ["orfeo321 <revego@code4you.cloud>"]
 license = "MIT"
 readme = "README.md"
+package-mode = false
 
 [tool.poetry.dependencies]
 <<<<<<< HEAD
+<<<<<<< HEAD
 python = "^3.11.2"
+=======
+python = "3.11.2"
+>>>>>>> develop
 asgiref = "3.8.1"
 django = "5.1"
 pillow = "10.4.0"
 psycopg2-binary = "2.9.9"
 sqlparse = "0.5.1"
+<<<<<<< HEAD
 =======
 python = "3.12.5"
 >>>>>>> ebb05edd533ea89d5ea8e86b0bef71c9dbf8c450
+=======
+certifi = "^2024.8.30"
+>>>>>>> develop
 
 
 [build-system]

@@ -18,6 +18,7 @@ from django.http import HttpResponse
 # new from AI
 from django.core.files.base import ContentFile
 from django.core.files.storage import default_storage
+from django.core.paginator import Paginator
 from django.contrib import messages
 from django.db.models import Count, Q
 
@@ -64,8 +65,15 @@ def parse_email_content(email_message):
     # Directory dove salvare le immagini temporaneamente
     temp_image_save_path = "./temp_images"
 
+    # Verifica se la cartella esiste e stampa le autorizzazioni
+    #print(f"Path exists: {os.path.exists(temp_image_save_path)}")
+    #print(f"Access permissions: {os.access(temp_image_save_path, os.W_OK)}")
+
     if not os.path.exists(temp_image_save_path):
-        os.makedirs(temp_image_save_path)
+        try:
+            os.makedirs(temp_image_save_path)
+        except PermissionError as e:
+            print(f"PermissionError: {e}")
 
     text_content = ""  # Inizializziamo la variabile per memorizzare il contenuto di testo
     image_file_path = None  # Inizializza la variabile per il percorso del file immagine
@@ -572,7 +580,14 @@ def process_emails(request):
     mail.logout()
     # Recupera i dati dal database per visualizzarli nella pagina
     emails = EmailData.objects.all().order_by('-image_time').values()
-    return render(request, 'emails/email_list.html', {'emails': emails})
+
+    # Pagination
+    paginator = Paginator(emails, 10)  # Mostra 10 segnalazioni per pagina
+    page_number = request.GET.get('page')  # Ottieni il numero della pagina corrente dalla richiesta
+    page_obj = paginator.get_page(page_number)  # Ottieni l'oggetto della pagina corrente
+
+    #return render(request, 'emails/email_list.html', {'emails': emails})
+    return render(request, 'emails/email_list.html', {'emails': emails, 'page_obj': page_obj})
 
 # Vista principale per elaborare le email
 def process_emails_(request):
@@ -731,8 +746,22 @@ def search_emails_list(request):
 def update_typo(request, email_id):
     if request.method == 'POST':
         email = get_object_or_404(EmailData, id=email_id)
-        # Aggiorna il campo typo con il valore inviato dal form
+
+	# Aggiorna il campo typo con il valore inviato dal form
         email.typo = request.POST.get('typo')
+
+	# Controllo se l'utente ha selezionato "Rimuovi"
+        if email.typo == 'rimuovi':
+            # Rimuovi il file immagine associato, se esiste
+            if email.image_file and os.path.isfile(email.image_file.path):
+                os.remove(email.image_file.path)
+
+            # Elimina la segnalazione
+            email.delete()
+            #messages.success(request, f"Segnalazione e immagine associate rimosse con successo.")
+            messages.success(request, f"Segnalazione per {email.city} ({email.status}) e immagine con ID {email.image_id} rimosse con successo.")
+            return HttpResponseRedirect(request.META.get('HTTP_REFERER', '/'))
+
         email.save()
         # Reindirizza alla pagina precedente o a una pagina specifica
         return HttpResponseRedirect(request.META.get('HTTP_REFERER', '/'))
