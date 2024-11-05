@@ -11,6 +11,7 @@ from psycopg2 import sql
 
 from django.shortcuts import render
 from django.utils import timezone
+from django.conf import settings
 
 # Create your views here.
 from django.http import HttpResponse
@@ -731,8 +732,31 @@ def search_emails_list(request):
 def update_typo(request, email_id):
     if request.method == 'POST':
         email = get_object_or_404(EmailData, id=email_id)
+
         # Aggiorna il campo typo con il valore inviato dal form
         email.typo = request.POST.get('typo')
+
+        # Controllo se l'utente ha selezionato "Rimuovi"
+        if email.typo == 'rimuovi':
+
+            # Percorso principale dell'immagine salvata nel campo image_file
+            if email.image_file and os.path.isfile(email.image_file.path):
+                os.remove(email.image_file.path)
+
+            # Percorso dell'immagine temporanea
+            temp_image_path = os.path.join(settings.BASE_DIR, 'temp_image', os.path.basename(email.image_file.name))
+            if os.path.isfile(temp_image_path):
+                os.remove(temp_image_path)
+
+            # Percorso dell'immagine in media/upload_images
+            upload_image_path = os.path.join(settings.MEDIA_ROOT, 'upload_images', os.path.basename(email.image_file.name))
+            if os.path.isfile(upload_image_path):
+                os.remove(upload_image_path)
+
+            email.delete()  # Elimina la segnalazione
+            messages.success(request, "Segnalazione rimossa con successo.")
+            return HttpResponseRedirect(request.META.get('HTTP_REFERER', '/'))  # Reindirizza alla pagina precedente
+
         email.save()
         # Reindirizza alla pagina precedente o a una pagina specifica
         return HttpResponseRedirect(request.META.get('HTTP_REFERER', '/'))

@@ -10,6 +10,7 @@ class EmailData(models.Model):
         ('tree', 'Censimento'),
         ('pianta', 'Piantumazione'),
         ('hole', 'Buche'),
+        ('api', 'API'),
     ]
 
     latitude = models.CharField(max_length=50, blank=True, null=True)

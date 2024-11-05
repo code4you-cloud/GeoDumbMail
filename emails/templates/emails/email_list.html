@@ -97,6 +97,10 @@ message }}</li>
                                     <option value="tronchi" {% if email.typo == 'tronchi' %}selected{% endif %}>Tronchi</option>
                                     <option value="censimento" {% if email.typo == 'censimento' %}selected{% endif %}>Censimento</option>
                                     <option value="piantumazione" {% if email.typo == 'piantumazione' %}selected{% endif %}>Piantumazione</option>
+                                    <option value="api" {% if email.typo == 'api' %}selected{% endif %}>API</option>
+                                    <option value="buche" {% if email.typo == 'buche' %}selected{% endif %}>Buche</option>
+                                    <!-- Nuova opzione Rimuovi -->
+                                    <option value="rimuovi">Rimuovi</option>
                                 </select>
                                 <button type="submit" class="btn btn-primary btn-sm mt-1">Aggiorna</button>
                             </form>
