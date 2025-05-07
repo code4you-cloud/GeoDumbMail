@@ -497,7 +497,14 @@ def mark_as_unread(mail, email_id):
         logger.error("Cannot mark email as unread: invalid or empty email ID")
 
 def process_emails(request):
-    mail, email_ids, unread_emails = fetch_unread_emails()
+    # update to get hard error as inbox not available
+    try:
+        mail, email_ids, unread_emails = fetch_unread_emails()
+    except Exception as e:
+        # Log dell'errore per debug
+        logger.error(f"Errore durante il fetch delle email: {str(e)}", exc_info=True)
+        # Redirect alla pagina di manutenzione
+        return redirect('update_in_progress')
 
     if not unread_emails:
         # Aggiorna il messaggio per indicare che i nuovi dati sono stati memorizzati
@@ -508,6 +515,11 @@ def process_emails(request):
     # Itera su ogni email e relativo email_id
     for idx, email_message in enumerate(unread_emails):
         logger.info("Parsing email content...")
+        try:
+            extracted_data = parse_email_content(email_message)
+        except Exception as e:
+            logger.debug(f"Error when read extracted_data: {extracted_data}")
+            return redirect('sito_in_aggiornamento')
         extracted_data = parse_email_content(email_message)
 
         if extracted_data:
@@ -766,3 +778,5 @@ def update_typo(request, email_id):
         # Reindirizza alla pagina precedente o a una pagina specifica
         return HttpResponseRedirect(request.META.get('HTTP_REFERER', '/'))
 
+def update_in_progress(request):
+        return render(request, 'emails/update_in_progress.html')
