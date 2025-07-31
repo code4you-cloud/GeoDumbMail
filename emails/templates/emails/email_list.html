@@ -73,6 +73,7 @@
                         <td>{% if email.status == '1' %}<p class="text-muted">{{ email.longitude }}</p>{% else %}{{ email.longitude }}{% endif %}</td>
                         <!--td>{{ email.longitude }}</td-->
                         <td>{{ email.city }}</td>
+                        <!--td><a href="{{ email.image_file.url }}">{{ email.address }}</a></td-->
                         <td><a href="{{ email.image_url }}">{{ email.address }}</a></td>
                         <td>{{ email.image_id }}</td>
                         <td>{{ email.image_time }}</td>
@@ -83,6 +84,7 @@
                                 <img src="{{ email.image_url }}" alt="Immagine" style="width: 100%; height: 100%; object-fit: cover;" />
                             </a>
                             {% else %}
+                                <!--img src="{{ email.image_file.url }}" alt="Immagine" style="width: 100%; height: 100%; object-fit: cover;" /-->
                                 <img src="{{ email.image_url }}" alt="Immagine" style="width: 100%; height: 100%; object-fit: cover;" />
                             {% endif %}
                         </td>

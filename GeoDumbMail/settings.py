@@ -91,14 +91,10 @@ WSGI_APPLICATION = "GeoDumbMail.wsgi.application"
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql_psycopg2', 	# Add 'postgresql_psycopg2', 'mysql', 'sqlite3' or 'oracle'.
-        'NAME': 'geodumbmail',                                  # Or path to database file if using sqlite3.
+        'NAME': 'geodumbnail',                                  # Or path to database file if using sqlite3.
         'USER': 'postgres',                                     # Not used with sqlite3.
-        'PASSWORD':'postgres',                                  # Not used with sqlite3.
-<<<<<<< HEAD
-        'HOST': '192.168.1.65',                                    # Set to empty string for localhost. Not used with sqlite3.
-=======
-        'HOST': '192.168.1.65',                                 # Set to empty string for localhost. Not used with sqlite3.
->>>>>>> d0114097795caa7fb4ea5298eabe53bb7c194b60
+        'PASSWORD':'123postgres',                                  # Not used with sqlite3.
+        'HOST': 'localhost',                                 # Set to empty string for localhost. Not used with sqlite3.
         'PORT': '5432',                                         # Set to empty string for default. Not used with sqlite3.
     }
 }
@@ -173,31 +169,37 @@ ssl._create_default_https_context = ssl._create_unverified_context
 #os.environ['SSL_CERT_FILE'] = certifi.where()
 #os.environ['SSL_CERT_FILE'] = '/etc/ssl/certs/cacert.pem'
 
+SERVER_IMAP = 'vps-e993bee2.vps.ovh.net'
+MAIL_TO_GET_REPORT = 'report@citylog.cloud'
+PWD_TO_GET_REPORT = 'Blacking1'
+
 EMAIL_USE_SSL = False
 
-#LOGGING = {
-#        'version': 1,
-#        'disable_existing_loggers': False,
-#    'handlers': {
-#        'console': {
-#                        'class': 'logging.StreamHandler',
-#
-#        },
-#
-#    },
-#    'loggers': {
-#        'django': {
-#                        'handlers': ['console'],
-#                        'level': 'DEBUG',
-#
-#        },
-#        'django.core.mail': {
-#                        'handlers': ['console'],
-#                        'level': 'DEBUG',
-#                        'propagate': False,
-#
-#        },
-#
-#    },
-#
-#}
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+        },
+    },
+    'root': {
+        'handlers': ['console'],
+        'level': 'DEBUG',  # Mostra tutti i log (DEBUG e superiori)
+    },
+    'loggers': {
+        'django': {
+            'handlers': ['console'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+        'tuamodulodjango': {  # Sostituisci con il nome della tua app
+            'handlers': ['console'],
+            'level': 'DEBUG',  # Livello dettagliato per la tua app
+        },
+    },
+}
+
+
+# Use the custom storage backend
+DEFAULT_FILE_STORAGE = "custom_storage.backends.CustomRemoteStorage"
