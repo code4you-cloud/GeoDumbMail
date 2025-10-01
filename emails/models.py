@@ -12,6 +12,7 @@ class EmailData(models.Model):
         ('notrunktree', 'Tronchi'),
         ('tree', 'Censimento'),
         ('pianta', 'Piantumazione'),
+        ('cantieri', 'Cantieri-Interventi'),
         ('hole', 'Buche'),
         ('api', 'API'),
         ('rimuovi', 'Rimuovi'),
