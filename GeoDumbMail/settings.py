@@ -31,7 +31,7 @@ DEBUG = True
 ALLOWED_HOSTS = ['*']
 
 CSRF_TRUSTED_ORIGINS = [
-    'https://image.citylog.cloud',
+    'https://ws.citylog.cloud',
     'https://citylog.cloud',  # Assicurati di aggiungere anche il tuo dominio.
 ]
 
@@ -91,7 +91,7 @@ WSGI_APPLICATION = "GeoDumbMail.wsgi.application"
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql_psycopg2', 	# Add 'postgresql_psycopg2', 'mysql', 'sqlite3' or 'oracle'.
-        'NAME': 'geodumbnail',                                  # Or path to database file if using sqlite3.
+        'NAME': 'geodumbmail',                                  # Or path to database file if using sqlite3.
         'USER': 'postgres',                                     # Not used with sqlite3.
         'PASSWORD':'postgres',                                  # Not used with sqlite3.
         'HOST': '192.168.1.65',                                 # Set to empty string for localhost. Not used with sqlite3.
@@ -203,3 +203,8 @@ LOGGING = {
 
 # Use the custom storage backend
 DEFAULT_FILE_STORAGE = "custom_storage.backends.CustomRemoteStorage"
+
+# Parametri configurabili
+REMOTE_STORAGE_UPLOAD_URL = 'https://ws.citylog.cloud/upload'
+REMOTE_STORAGE_MEDIA_URL = 'https://ws.citylog.cloud/media'
+REMOTE_STORAGE_DELETE_URL = "https://ws.citylog.cloud/delete"

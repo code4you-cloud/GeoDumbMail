@@ -340,12 +340,14 @@ def process_emails(request):
     # Itera su ogni email e relativo email_id
     for idx, email_message in enumerate(unread_emails):
         logger.info("Parsing email content...")
+        #extracted_data = None  # inizializzo per sicurezza
         try:
             extracted_data = parse_email_content(email_message)
         except Exception as e:
+            logger.error(f"Errore durante l'estrazione email {idx}: {e}")
             logger.debug(f"Error when read extracted_data: {extracted_data}")
-            return redirect('sito_in_aggiornamento')
-        extracted_data = parse_email_content(email_message)
+            return redirect('update_in_progress')
+        #extracted_data = parse_email_content(email_message)
 
         if extracted_data:
             logger.info("Data successfully extracted:")
