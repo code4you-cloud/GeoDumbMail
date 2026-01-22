@@ -55,6 +55,7 @@
             <table class="table table-bordered table-hover">
                 <thead class="thead-light">
                     <tr>
+                        <th>Id</th>
                         <th>Latitude</th>
                         <th>Longitude</th>
                         <th>City</th>
@@ -69,6 +70,7 @@
                 <tbody>
                     {% for email in emails %}
                     <tr>
+                        <td>{{ email.id }}</td>
                         <td>{% if email.status == '1' %}<p class="text-muted">{{ email.latitude }}</p>{% else %}{{ email.latitude }}{% endif %}</td>
                         <td>{% if email.status == '1' %}<p class="text-muted">{{ email.longitude }}</p>{% else %}{{ email.longitude }}{% endif %}</td>
                         <!--td>{{ email.longitude }}</td-->
@@ -98,7 +100,7 @@
                                     <option value="tronchi" {% if email.typo == 'tronchi' %}selected{% endif %}>Tronchi</option>
                                     <option value="censimento" {% if email.typo == 'censimento' %}selected{% endif %}>Censimento</option>
                                     <option value="piantumazione" {% if email.typo == 'piantumazione' %}selected{% endif %}>Piantumazione</option>
-                                    <option value="hole" {% if email.typo == 'buche' %}selected{% endif %}>Buche</option>
+                                    <option value="buche" {% if email.typo == 'buche' %}selected{% endif %}>Buche</option>
                                     <option value="cantieri" {% if email.typo == 'cantieri' %}selected{% endif %}>Cantieri-Interventi</option>
                                     <option value="api" {% if email.typo == 'api' %}selected{% endif %}>API</option>
                                     <option value="rimuovi" {% if email.typo == 'rimuovi' %}selected{% endif %}>Rimuovi</option>
