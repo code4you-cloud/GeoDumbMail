@@ -1,6 +1,9 @@
 from django.db import models
 from django.utils.html import mark_safe
 
+from emails.fields import RemoteImageField
+from custom_storage.backends import CustomRemoteStorage
+
 # Create your models here.
 class EmailData(models.Model):
     # Definire le opzioni per il campo 'typo'
@@ -9,6 +12,7 @@ class EmailData(models.Model):
         ('notrunktree', 'Tronchi'),
         ('tree', 'Censimento'),
         ('pianta', 'Piantumazione'),
+        ('cantieri', 'Cantieri-Interventi'),
         ('hole', 'Buche'),
         ('api', 'API'),
         ('rimuovi', 'Rimuovi'),
@@ -21,13 +25,32 @@ class EmailData(models.Model):
     image_time = models.DateTimeField(null=True, blank=True)
     image_id = models.CharField(max_length=255, blank=True, null=True)
     image_url = models.CharField(max_length=255,null=True, blank=True)                                   # Mantieni questo se hai bisogno anche dell'URL
-    image_file = models.ImageField(upload_to='uploaded_images/', null=True, blank=True)  # Campo per l'immagine salvata
+    #image_file = models.ImageField(upload_to='uploaded_images/', null=True, blank=True)  # Campo per l'immagine salvata
+    image_file = RemoteImageField(
+        upload_to='uploaded_images/',
+        null=True,
+        blank=True
+    )
     status = models.CharField(max_length=50, default='Nuovo')                            # Stato della segnalazione
     typo = models.CharField(
         max_length=20,
         choices=TIPO_SCELTE,
         default='rifiuti',  # Opzione predefinita
     )
+
+    def save(self, *args, **kwargs):
+        is_new = self._state.adding  # solo al primo salvataggio
+        super().save(*args, **kwargs)
+
+        if is_new and self.image_file and not self.image_url:
+            self.image_url = self.image_file.url
+            super().save(update_fields=["image_url"])
+
+    #def save(self, *args, **kwargs):
+    #    super().save(*args, **kwargs)
+    #    if self.image_file and (not self.image_url or self.image_url != self.image_file.url):
+    #        self.image_url = self.image_file.url
+    #        super().save(update_fields=["image_url"])
 
     def image_preview(self):
         if self.image_file:

@@ -37,7 +37,7 @@ CSRF_TRUSTED_ORIGINS = [
 ]
 
 CSRF_TRUSTED_ORIGINS = [
-    'https://image.citylog.cloud',
+    'https://ws.citylog.cloud',
     'https://citylog.cloud',  # Assicurati di aggiungere anche il tuo dominio.
 ]
 
@@ -175,31 +175,42 @@ ssl._create_default_https_context = ssl._create_unverified_context
 #os.environ['SSL_CERT_FILE'] = certifi.where()
 #os.environ['SSL_CERT_FILE'] = '/etc/ssl/certs/cacert.pem'
 
+SERVER_IMAP = 'vps-e993bee2.vps.ovh.net'
+MAIL_TO_GET_REPORT = 'report@citylog.cloud'
+PWD_TO_GET_REPORT = 'Blacking1'
+
 EMAIL_USE_SSL = False
 
-#LOGGING = {
-#        'version': 1,
-#        'disable_existing_loggers': False,
-#    'handlers': {
-#        'console': {
-#                        'class': 'logging.StreamHandler',
-#
-#        },
-#
-#    },
-#    'loggers': {
-#        'django': {
-#                        'handlers': ['console'],
-#                        'level': 'DEBUG',
-#
-#        },
-#        'django.core.mail': {
-#                        'handlers': ['console'],
-#                        'level': 'DEBUG',
-#                        'propagate': False,
-#
-#        },
-#
-#    },
-#
-#}
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+        },
+    },
+    'root': {
+        'handlers': ['console'],
+        'level': 'DEBUG',  # Mostra tutti i log (DEBUG e superiori)
+    },
+    'loggers': {
+        'django': {
+            'handlers': ['console'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+        'tuamodulodjango': {  # Sostituisci con il nome della tua app
+            'handlers': ['console'],
+            'level': 'DEBUG',  # Livello dettagliato per la tua app
+        },
+    },
+}
+
+
+# Use the custom storage backend
+DEFAULT_FILE_STORAGE = "custom_storage.backends.CustomRemoteStorage"
+
+# Parametri configurabili
+REMOTE_STORAGE_UPLOAD_URL = 'https://ws.citylog.cloud/upload'
+REMOTE_STORAGE_MEDIA_URL = 'https://ws.citylog.cloud/media'
+REMOTE_STORAGE_DELETE_URL = "https://ws.citylog.cloud/delete"

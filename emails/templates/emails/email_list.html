@@ -55,6 +55,7 @@
             <table class="table table-bordered table-hover">
                 <thead class="thead-light">
                     <tr>
+                        <th>Id</th>
                         <th>Latitude</th>
                         <th>Longitude</th>
                         <th>City</th>
@@ -69,20 +70,23 @@
                 <tbody>
                     {% for email in emails %}
                     <tr>
+                        <td>{{ email.id }}</td>
                         <td>{% if email.status == '1' %}<p class="text-muted">{{ email.latitude }}</p>{% else %}{{ email.latitude }}{% endif %}</td>
                         <td>{% if email.status == '1' %}<p class="text-muted">{{ email.longitude }}</p>{% else %}{{ email.longitude }}{% endif %}</td>
                         <!--td>{{ email.longitude }}</td-->
                         <td>{{ email.city }}</td>
+                        <!--td><a href="{{ email.image_file.url }}">{{ email.address }}</a></td-->
                         <td><a href="{{ email.image_url }}">{{ email.address }}</a></td>
                         <td>{{ email.image_id }}</td>
                         <td>{{ email.image_time }}</td>
                         <!--td><a href="{{ email.image_url }}" target="_blank">{{ email.image_url }}</a></td-->
                         <td style="width: 100px; height: 100px;">
                             {% if email.status == '0' %}
-                            <a href="https://maps.citylog.cloud/sample_leaflet.html?lat={{ email.latitude }}&lon={{ email.longitude }}&zoom=15&address={{ email.address      }}&image_url=https://image.citylog.cloud{{ email.image_url }}" target="_blank">
+                            <a href="https://maps.citylog.cloud/sample_leaflet.html?lat={{ email.latitude }}&lon={{ email.longitude }}&zoom=15&address={{ email.address }}&image_url={{ email.image_url }}" target="_blank">
                                 <img src="{{ email.image_url }}" alt="Immagine" style="width: 100%; height: 100%; object-fit: cover;" />
                             </a>
                             {% else %}
+                                <!--img src="{{ email.image_file.url }}" alt="Immagine" style="width: 100%; height: 100%; object-fit: cover;" /-->
                                 <img src="{{ email.image_url }}" alt="Immagine" style="width: 100%; height: 100%; object-fit: cover;" />
                             {% endif %}
                         </td>
@@ -96,6 +100,8 @@
                                     <option value="tronchi" {% if email.typo == 'tronchi' %}selected{% endif %}>Tronchi</option>
                                     <option value="censimento" {% if email.typo == 'censimento' %}selected{% endif %}>Censimento</option>
                                     <option value="piantumazione" {% if email.typo == 'piantumazione' %}selected{% endif %}>Piantumazione</option>
+                                    <option value="buche" {% if email.typo == 'buche' %}selected{% endif %}>Buche</option>
+                                    <option value="cantieri" {% if email.typo == 'cantieri' %}selected{% endif %}>Cantieri-Interventi</option>
                                     <option value="api" {% if email.typo == 'api' %}selected{% endif %}>API</option>
                                     <option value="rimuovi" {% if email.typo == 'rimuovi' %}selected{% endif %}>Rimuovi</option>
                                 </select>

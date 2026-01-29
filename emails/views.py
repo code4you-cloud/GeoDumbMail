@@ -21,6 +21,7 @@ from django.core.files.storage import default_storage
 from django.core.paginator import Paginator
 from django.contrib import messages
 from django.db.models import Count, Q
+from django.conf import settings
 
 from django.shortcuts import get_object_or_404, redirect
 from django.http import HttpResponseRedirect
@@ -38,8 +39,9 @@ def fetch_unread_emails():
     context.set_ciphers('HIGH:!DH:!aNULL')
 
     # Connessione al server IMAP
-    mail = imaplib.IMAP4_SSL('in.citylog.cloud', port=993, ssl_context=context)
-    mail.login('report@citylog.cloud', 'Blacking1')  # Sostituisci con le tue credenziali
+    mail = imaplib.IMAP4_SSL(settings.SERVER_IMAP, port=993, ssl_context=context)
+    #mail = imaplib.IMAP4_SSL('in.citylog.cloud', port=993, ssl_context=context)
+    mail.login(settings.MAIL_TO_GET_REPORT, settings.PWD_TO_GET_REPORT)  # Sostituisci con le tue credenziali
     mail.select('inbox')
 
     # Cerca tutte le email non lette
@@ -62,6 +64,69 @@ def fetch_unread_emails():
     return mail, email_ids, unread_emails
 
 def parse_email_content(email_message):
+    text_content = ""
+    image_file_path = None
+    image_instance = EmailData()  # Prepara l'istanza
+
+    for part in email_message.walk():
+        content_type = part.get_content_type()
+
+        if part.is_multipart():
+            continue
+
+        if content_type == 'text/plain':
+            text_content += part.get_payload(decode=True).decode('utf-8', errors='replace')
+            text_content = text_content.replace('\r\n', '\n')
+
+        elif content_type.startswith('image/'):
+            image_filename = part.get_filename()
+            if not image_filename:
+                image_filename = f"image_{timezone.now().strftime('%Y%m%d%H%M%S')}.jpg"
+
+            image_data = part.get_payload(decode=True)
+
+            # Usa ContentFile invece di scrivere su disco
+            content_file = ContentFile(image_data, name=image_filename)
+
+            # Salva direttamente sul modello usando lo storage configurato
+            image_instance.image_file.save(image_filename, content_file, save=False)
+
+    if text_content:
+        # Parsing delle informazioni
+        latitude = re.search(r'Latitude:\s*([\d\.\-]+)', text_content)
+        longitude = re.search(r'Longitude:\s*([\d\.\-]+)', text_content)
+        city = re.search(r'\*\*City:\*\*\s*(.+)', text_content)
+        address = re.search(r'\*\*Address:\*\*\s*(.+)', text_content)
+        image_id = re.search(r'\*\*ImageID:\*\*\s*([a-f0-9\-]+)', text_content)
+
+        image_instance.latitude = latitude.group(1) if latitude else None
+        image_instance.longitude = longitude.group(1) if longitude else None
+        image_instance.city = city.group(1) if city else None
+        image_instance.address = address.group(1) if address else None
+        image_instance.image_time = timezone.now()
+        image_instance.image_id = image_id.group(1) if image_id else None
+
+        # Solo se l'immagine è presente
+        if image_instance.image_file:
+            image_instance.image_url = image_instance.image_file.url
+
+        image_instance.save()
+
+        return {
+            'latitude': image_instance.latitude,
+            'longitude': image_instance.longitude,
+            'city': image_instance.city,
+            'address': image_instance.address,
+            'image_time': image_instance.image_time,
+            'image_id': image_instance.image_id,
+            'image_url': image_instance.image_url,
+            'image_file': image_instance.image_file.url if image_instance.image_file else None
+        }
+
+    return None
+
+
+def parse_email_content_(email_message):
     # Directory dove salvare le immagini temporaneamente
     temp_image_save_path = "./temp_images"
 
@@ -157,247 +222,6 @@ def parse_email_content(email_message):
             'image_url': image_instance.image_url,  # URL dell'immagine salvata
             'image_file': image_instance.image_file.url
         }
-
-    return None
-
-def parse_email_content___(email_message):
-    # Directory dove salvare le immagini temporaneamente
-    temp_image_save_path = "./temp_images"
-
-    if not os.path.exists(temp_image_save_path):
-        os.makedirs(temp_image_save_path)
-
-    text_content = ""  # Inizializziamo la variabile per memorizzare il contenuto di testo
-    image_file_path = None  # Inizializza la variabile per il percorso del file immagine
-
-    # Itera attraverso le parti dell'email
-    for part in email_message.walk():
-        content_type = part.get_content_type()
-
-        if part.is_multipart():
-            # Se la parte è multipart, continuiamo il loop
-            continue
-
-        if content_type == 'text/plain':
-            # Gestione del testo
-            text_content += part.get_payload(decode=True).decode('utf-8', errors='replace')
-            text_content = text_content.replace('\r\n', '\n')
-
-        elif content_type.startswith('image/'):  # Gestisce le immagini
-            # Estrai il nome del file e il contenuto binario dell'immagine
-            image_filename = part.get_filename()
-
-            if not image_filename:
-                # Genera un nome di file unico se il nome del file è mancante
-                image_filename = f"image_{timezone.now().strftime('%Y%m%d%H%M%S')}.jpg"
-
-            # Percorso completo per salvare l'immagine temporaneamente
-            image_filepath = os.path.join(temp_image_save_path, image_filename)
-
-            image_data = part.get_payload(decode=True)
-
-            # Salva l'immagine temporaneamente
-            with open(image_filepath, 'wb') as f:
-                f.write(image_data)
-
-            print(f"Immagine salvata temporaneamente: {image_filepath}")
-
-            # Salva l'immagine utilizzando il modello Django
-            image_instance = EmailData()
-            image_instance.image_file.save(image_filename, open(image_filepath, 'rb'), save=False)
-            image_file_path = image_instance.image_file
-
-    # Analisi del contenuto di testo per estrarre informazioni
-    if text_content:
-        print("Text Content:\n", text_content)
-
-        # Utilizza le espressioni regolari per trovare le coordinate e l'indirizzo
-        latitude = re.search(r'Latitude:\s*([\d\.\-]+)', text_content)
-        longitude = re.search(r'Longitude:\s*([\d\.\-]+)', text_content)
-        city = re.search(r'\*\*City:\*\*\s*(.+)', text_content)
-        address = re.search(r'\*\*Address:\*\*\s*(.+)', text_content)
-        #typo = re.search(r'\*\*Typo:\*\*\s*(.+)', text_content)
-        image_time = timezone.now()
-        image_id = re.search(r'\*\*ImageID:\*\*\s*([a-f0-9\-]+)', text_content)
-        image_url = re.search(r'https?://[^\s]+', text_content)
-
-        # Aggiorna le informazioni dell'istanza dell'immagine
-        image_instance.latitude = latitude.group(1) if latitude else None
-        image_instance.longitude = longitude.group(1) if longitude else None
-        image_instance.city = city.group(1) if city else None
-        image_instance.address = address.group(1) if address else None
-        #image_instance.typo = typo.group(1) if typo else None
-        image_instance.image_time = image_time
-        image_instance.image_id = image_id.group(1) if image_id else None
-        image_instance.image_url = image_url.group(0) if image_url else None
-
-        # Salva l'istanza del modello nel database
-        image_instance.save()
-
-        print("Dati salvati nel database.")
-
-        return {
-            'latitude': image_instance.latitude,
-            'longitude': image_instance.longitude,
-            'city': image_instance.city,
-            'address': image_instance.address,
-            #'typo': image_instance.typo,
-            'image_time': image_instance.image_time,
-            'image_id': image_instance.image_id,
-            'image_url': image_instance.image_url,
-            'image_file': image_instance.image_file.url
-        }
-
-    return None
-
-def parse_email_content__(email_message):
-    # Directory dove salvare le immagini
-    image_save_path = "./downloaded_images"
-
-    if not os.path.exists(image_save_path):
-        os.makedirs(image_save_path)
-
-    text_content = ""  # Inizializziamo la variabile per memorizzare il contenuto di testo
-
-    # Itera attraverso le parti dell'email
-    for part in email_message.walk():
-        content_type = part.get_content_type()
-
-        if part.is_multipart():
-            # Se la parte è multipart, continuiamo il loop
-            continue
-
-        if content_type == 'text/plain':
-            # Gestione del testo
-            text_content += part.get_payload(decode=True).decode('utf-8', errors='replace')
-            text_content = text_content.replace('\r\n', '\n')
-
-        elif content_type.startswith('image/'):  # Gestisce le immagini
-            # Estrai il nome del file e il contenuto binario dell'immagine
-            image_filename = part.get_filename()
-
-            if not image_filename:
-                # Genera un nome di file unico se il nome del file è mancante
-                image_filename = f"image_{timezone.now().strftime('%Y%m%d%H%M%S')}.jpg"
-
-            # Percorso completo per salvare l'immagine
-            image_filepath = os.path.join(image_save_path, image_filename)
-
-            image_data = part.get_payload(decode=True)
-
-            # Salva l'immagine o fai ulteriori elaborazioni
-            with open(image_filepath, 'wb') as f:
-                f.write(image_data)
-
-            print(f"Immagine salvata: {image_filepath}")
-
-    # Analisi del contenuto di testo per estrarre informazioni
-    if text_content:
-        print("Text Content:\n", text_content)
-
-        # Utilizza le espressioni regolari per trovare le coordinate e l'indirizzo
-        latitude = re.search(r'Latitude:\s*([\d\.\-]+)', text_content)
-        longitude = re.search(r'Longitude:\s*([\d\.\-]+)', text_content)
-        city = re.search(r'\*\*City:\*\*\s*(.+)', text_content)
-        address = re.search(r'\*\*Address:\*\*\s*(.+)', text_content)
-        #typo = re.search(r'\*\*Typo:\*\*\s*(.+)', text_content)
-        image_time = timezone.now()
-        image_id = re.search(r'\*\*ImageID:\*\*\s*([a-f0-9\-]+)', text_content)
-        image_url = re.search(r'https?://[^\s]+', text_content)
-        image_file = re.search(r'- ImageFocus:\s*(.*)', text_content)
-
-        # Salva i dati nel database
-        save_to_postgresql(
-            latitude.group(1) if latitude else None,
-            longitude.group(1) if longitude else None,
-            city.group(1) if city else None,
-            address.group(1) if address else None,
-            typo.group(1) if typo else None,
-            image_time,
-            image_id.group(1) if image_id else None,
-            image_url.group(0) if image_url else None,
-            image_file.group(1) if image_file else None
-        )
-
-        return {
-            'latitude': latitude.group(1) if latitude else None,
-            'longitude': longitude.group(1) if longitude else None,
-            'city': city.group(1) if city else None,
-            'address': address.group(1) if address else None,
-            #'typo': typo.group(1) if typo else None,
-            'image_time': image_time,
-            'image_id': image_id.group(1) if image_id else None,
-            'image_url': image_url.group(0) if image_url else None,
-            'image_file': image_file.group(1) if image_file else None
-        }
-
-    return None
-
-# Funzione per analizzare il contenuto del testo e estrarre i dati
-def parse_email_content_(email_message):
-    for part in email_message.walk():
-        content_type = part.get_content_type()
-        #if content_type == 'text/plain':
-
-        if part.get_content_type() == 'text/plain':
-            text_content = part.get_payload(decode=True).decode('utf-8', errors='replace')
-            text_content = text_content.replace('\r\n', '\n')
-            print(f'{text_content}')
-
-            # Utilizza le espressioni regolari per trovare le coordinate e l'indirizzo
-            latitude = re.search(r'Latitude:\s*([\d\.\-]+)', text_content)
-            longitude = re.search(r'Longitude:\s*([\d\.\-]+)', text_content)
-            city = re.search(r'\*\*City:\*\*\s*(.+)', text_content)
-            address = re.search(r'\*\*Address:\*\*\s*(.+)', text_content)
-            #typo = re.search(r'\*\*Typo:\*\*\s*(.+)', text_content)
-            image_time = timezone.now()
-            image_id = re.search(r'\*\*ImageID:\*\*\s*([a-f0-9\-]+)', text_content)
-            image_url = re.search(r'- ImageURL:\s*\n', text_content)
-            #image_file = re.search(r'- ImageFocus:\s*(.+)', text_content)
-            #image_file = re.search(r'- ImageFocus:\s*(.*)', text_content)
-            image_file = re.findall(r'- ImageFocus:/images/\d+/(\w+.jpg)', text_content)
-
-            # Salva i dati nel database
-            save_to_postgresql(latitude.group(1) if latitude else None,
-                           longitude.group(1) if longitude else None,
-                           city.group(1) if city else None,
-                           address.group(1) if address else None,
-                           #typo.group(1) if typo else None,
-                           image_time,
-                           image_id.group(1) if image_id else None,
-                           image_url.group(1) if image_url else None,
-                           image_file.group(1) if image_file else None)
-
-            return {
-                'latitude': latitude.group(1) if latitude else None,
-                'longitude': longitude.group(1) if longitude else None,
-                'city': city.group(1) if city else None,
-                'address': address.group(1) if address else None,
-                #'typo': typo.group(1) if typo else None,
-                'image_time': image_time,
-                'image_id': image_id.group(1) if image_id else None,
-                'image_url': image_url.group(1) if image_url else None,
-                'image_file': image_file.group(1) if image_file else None
-            }
-
-        #elif content_type.startswith('image/'):  # Gestisce le immagini
-            # Estrai il nome del file e il contenuto binario dell'immagine
-        #    image_filename = part.get_filename()
-
-        #    if not image_filename:
-                # Genera un nome di file unico se il nome del file è mancante
-        #        image_filename = f"image_{timezone.now().strftime('%Y%m%d%H%M%S')}.jpg"
-
-            # Percorso completo per salvare l'immagine
-        #    image_filepath = os.path.join(image_save_path, image_filename)
-
-        #    image_data = part.get_payload(decode=True)
-
-            # Salva l'immagine o fai ulteriori elaborazioni
-        #    with open(image_filepath, 'wb') as f:
-        #        f.write(image_data)
-
-        #    print(f"Immagine salvata: {image_filepath}")
 
     return None
 
@@ -497,7 +321,15 @@ def mark_as_unread(mail, email_id):
         logger.error("Cannot mark email as unread: invalid or empty email ID")
 
 def process_emails(request):
-    mail, email_ids, unread_emails = fetch_unread_emails()
+    # update to get hard error as inbox not available
+    try:
+        mail, email_ids, unread_emails = fetch_unread_emails()
+    except Exception as e:
+        # Log dell'errore per debug
+        logger.error(f"Errore durante il fetch delle email: {str(e)}", exc_info=True)
+        # Redirect alla pagina di manutenzione
+        return redirect('update_in_progress')
+
 
     if not unread_emails:
         # Aggiorna il messaggio per indicare che i nuovi dati sono stati memorizzati
@@ -508,7 +340,14 @@ def process_emails(request):
     # Itera su ogni email e relativo email_id
     for idx, email_message in enumerate(unread_emails):
         logger.info("Parsing email content...")
-        extracted_data = parse_email_content(email_message)
+        #extracted_data = None  # inizializzo per sicurezza
+        try:
+            extracted_data = parse_email_content(email_message)
+        except Exception as e:
+            logger.error(f"Errore durante l'estrazione email {idx}: {e}")
+            logger.debug(f"Error when read extracted_data: {extracted_data}")
+            return redirect('update_in_progress')
+        #extracted_data = parse_email_content(email_message)
 
         if extracted_data:
             logger.info("Data successfully extracted:")
@@ -752,9 +591,14 @@ def update_typo(request, email_id):
 
 	# Controllo se l'utente ha selezionato "Rimuovi"
         if email.typo == 'rimuovi':
-            # Rimuovi il file immagine associato, se esiste
-            if email.image_file and os.path.isfile(email.image_file.path):
-                os.remove(email.image_file.path)
+            if email.image_file and email.image_file.storage.exists(email.image_file.name):
+                try:
+                    email.image_file.delete(save=False)
+                except NotImplementedError:
+                    pass
+            # Rimuovi il file immagine associato, se esiste su path tradizionale media/
+            #if email.image_file and os.path.isfile(email.image_file.path):
+                #os.remove(email.image_file.path)
 
             # Elimina la segnalazione
             email.delete()
@@ -766,3 +610,5 @@ def update_typo(request, email_id):
         # Reindirizza alla pagina precedente o a una pagina specifica
         return HttpResponseRedirect(request.META.get('HTTP_REFERER', '/'))
 
+def update_in_progress(request):
+        return render(request, 'emails/update_in_progress.html')

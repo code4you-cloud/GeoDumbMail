@@ -29,6 +29,10 @@ python = "3.12.5"
 >>>>>>> ebb05edd533ea89d5ea8e86b0bef71c9dbf8c450
 =======
 certifi = "^2024.8.30"
+<<<<<<< HEAD
+>>>>>>> develop
+=======
+requests = "^2.32.4"
 >>>>>>> develop
 
 
