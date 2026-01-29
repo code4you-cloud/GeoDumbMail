@@ -28,7 +28,7 @@ SECRET_KEY = "django-insecure-js8_#xdhrvdavxja3e$7copz#$%p1p1=&w5i(srsnvyguv03*8
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['image.citylog.cloud']
+ALLOWED_HOSTS = ['image.citylog.cloud','report.citylog.cloud']
 
 CSRF_TRUSTED_ORIGINS = [
     'https://image.citylog.cloud',
