@@ -5,6 +5,7 @@ import ssl
 import sqlite3
 import logging
 import os
+import requests
 
 import psycopg2
 from psycopg2 import sql
@@ -98,6 +99,8 @@ def parse_email_content(email_message):
         city = re.search(r'\*\*City:\*\*\s*(.+)', text_content)
         address = re.search(r'\*\*Address:\*\*\s*(.+)', text_content)
         image_id = re.search(r'\*\*ImageID:\*\*\s*([a-f0-9\-]+)', text_content)
+        ###
+        user_id = re.search(r'\*\*UserID:\*\*\s*(\d+)', text_content)
 
         image_instance.latitude = latitude.group(1) if latitude else None
         image_instance.longitude = longitude.group(1) if longitude else None
@@ -105,6 +108,39 @@ def parse_email_content(email_message):
         image_instance.address = address.group(1) if address else None
         image_instance.image_time = timezone.now()
         image_instance.image_id = image_id.group(1) if image_id else None
+        ###
+        facebook_id = user_id.group(1) if user_id else None
+        #image_instance.user_id = user_id.group(1) if user_id else None
+
+        # Salvo solo l'ID interno nel DB Django
+        #image_instance.user_id = user_id_int
+        user_id_int = None
+        if facebook_id:
+            try:
+                resp = requests.get(
+                    f"{settings.FASTAPI_BASE_URL}/facebook/{facebook_id}",
+                    timeout=5
+                )
+
+                logger.debug(f"request get: {resp} as unread")
+                print("STATUS:", resp.status_code)
+                print("RESPONSE:", resp.text)
+
+                if resp.status_code == 200:
+                    data = resp.json()
+                    user_id_int = resp.json().get("id")
+                    print("User id int:", user_id_int)
+
+                    if not user_id_int:
+                        print("ID non trovato nella risposta:", data)
+
+                else:
+                    print("FastAPI error:", resp.status_code, resp.text)
+
+            except Exception as e:
+                print("Errore chiamata FastAPI:", e)
+
+        image_instance.user_id = user_id_int
 
         # Solo se l'immagine è presente
         if image_instance.image_file:
@@ -120,7 +156,9 @@ def parse_email_content(email_message):
             'image_time': image_instance.image_time,
             'image_id': image_instance.image_id,
             'image_url': image_instance.image_url,
-            'image_file': image_instance.image_file.url if image_instance.image_file else None
+            'image_file': image_instance.image_file.url if image_instance.image_file else None,
+            ###
+            #'user_id': image_instance.user_id
         }
 
     return None
@@ -320,7 +358,228 @@ def mark_as_unread(mail, email_id):
     else:
         logger.error("Cannot mark email as unread: invalid or empty email ID")
 
+
+# Test richiamo endpoint FastAPI per elaborare le email
 def process_emails(request):
+    """
+    Processa le email non lette:
+    1. Recupera email dal server IMAP
+    2. Salva i dati nel DB Django
+    3. Invia i nuovi record a FastAPI tramite service-login
+    """
+
+    # --- Step 0: inizializza variabili e logging ---
+    try:
+        mail, email_ids, unread_emails = fetch_unread_emails()
+    except Exception as e:
+        logger.error(f"Errore durante il fetch delle email: {str(e)}", exc_info=True)
+        return redirect('update_in_progress')
+
+    if not unread_emails:
+        messages.warning(request, "No new unread emails found. App is idle, waiting for new emails...")
+        check_and_update_database()
+
+        # 🔽 MOSTRA COMUNQUE I DATI
+        emails = EmailData.objects.all().order_by('-image_time').values()
+        paginator = Paginator(emails, 10)
+        page_number = request.GET.get('page')
+        page_obj = paginator.get_page(page_number)
+
+        return render(request, 'emails/email_list.html', {'emails': emails, 'page_obj': page_obj})
+
+    # --- Step 1: Salvataggio email nel DB Django ---
+    new_records = []
+    for idx, email_message in enumerate(unread_emails):
+        logger.info(f"Parsing email {idx+1}/{len(unread_emails)}...")
+        try:
+            extracted_data = parse_email_content(email_message)
+        except Exception as e:
+            logger.error(f"Errore parsing email {idx}: {e}")
+            continue
+
+        if not extracted_data:
+            logger.warning(f"Nessun dato estratto dall'email {idx}")
+            continue
+
+        existing = EmailData.objects.filter(
+            latitude=extracted_data['latitude'],
+            longitude=extracted_data['longitude']
+        ).first()
+
+        if existing:
+            existing.status = 'In elaborazione'
+            existing.save()
+            logger.info(f"Aggiornato record esistente ID {existing.id}")
+        else:
+            new_email = EmailData(
+                latitude=extracted_data['latitude'],
+                longitude=extracted_data['longitude'],
+                city=extracted_data['city'],
+                address=extracted_data['address'],
+                image_time=extracted_data['image_time'],
+                image_id=extracted_data['image_id'],
+                image_url=extracted_data['image_url'],
+                image_file=extracted_data['image_file'],
+                status='Nuovo'
+                ##
+                ##image_file=extracted_data['user_id'],
+            )
+            new_email.save()
+            new_records.append(new_email)
+            logger.info(f"Creato nuovo record ID {new_email.id}")
+
+    mail.logout()
+
+    if not new_records:
+        logger.info("Nessun nuovo record da inviare a FastAPI")
+        messages.info(request, "Non ci sono nuovi record da inviare a FastAPI.")
+
+        # 🔽 MOSTRA I DATI
+        emails = EmailData.objects.all().order_by('-image_time').values()
+        paginator = Paginator(emails, 10)
+        page_number = request.GET.get('page')
+        page_obj = paginator.get_page(page_number)
+
+        return render(request, 'emails/email_list.html', {'emails': emails, 'page_obj': page_obj})
+
+    # --- Step 2: Autenticazione servizio Django → FastAPI ---
+    try:
+        auth_response = requests.post(
+            f"{settings.FASTAPI_BASE_URL}/auth/service-login"
+        )
+        auth_response.raise_for_status()
+        token = auth_response.json().get("access_token")
+        headers = {"Authorization": f"Bearer {token}"}
+        logger.info("Autenticazione FastAPI avvenuta con successo")
+    except Exception as e:
+        logger.error(f"Autenticazione FastAPI fallita: {e}")
+        messages.error(request, "Autenticazione FastAPI fallita.")
+        return redirect('update_in_progress')
+
+    # --- Step 3: Invio nuovi record a FastAPI ---
+    for record in new_records:
+        payload = {
+            "latitude": record.latitude,
+            "longitude": record.longitude,
+            "city": record.city,
+            "address": record.address,
+            "image_id": record.image_id,
+            "image_url": record.image_url,
+            "status": record.status
+        }
+        try:
+            response = requests.post(
+                f"{settings.FASTAPI_BASE_URL}/rifiuti/",
+                json=payload,
+                headers=headers
+            )
+            if response.status_code == 201:
+                logger.info(f"✅ Record ID {record.id} creato su FastAPI")
+            else:
+                logger.error(f"❌ Errore creazione record ID {record.id}: {response.status_code} - {response.text}")
+        except Exception as e:
+            logger.error(f"Errore invio record ID {record.id} a FastAPI: {e}")
+
+    messages.success(request, f"Elaborazione completata. {len(new_records)} record inviati a FastAPI.")
+
+    # 🔽 🔽 🔽 BLOCCO FINALE CHE TI SERVIVA
+    emails = EmailData.objects.all().order_by('-image_time').values()
+    paginator = Paginator(emails, 10)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+
+    return render(request, 'emails/email_list.html', {'emails': emails, 'page_obj': page_obj})
+
+
+def process_emails_(request):
+    # 📥 Recupero email
+    try:
+        mail, email_ids, unread_emails = fetch_unread_emails()
+    except Exception as e:
+        logger.error(f"Errore durante il fetch delle email: {str(e)}", exc_info=True)
+        return redirect('update_in_progress')
+
+    if not unread_emails:
+        messages.warning(request, "No new unread emails found. App is idle...")
+
+    # 🔐 Autenticazione servizio → FastAPI
+    try:
+        auth_response = requests.post(
+            f"{settings.FASTAPI_BASE_URL}/auth/service-login"
+        )
+    except Exception as e:
+        logger.error(f"Errore connessione auth FastAPI: {e}")
+        return redirect('update_in_progress')
+
+    if auth_response.status_code != 200:
+        logger.error(f"Auth FastAPI fallita: {auth_response.text}")
+        return redirect('update_in_progress')
+
+    token = auth_response.json()["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+
+    # 🔄 Processa email
+    for idx, email_message in enumerate(unread_emails):
+        logger.info("Parsing email content...")
+
+        try:
+            extracted_data = parse_email_content(email_message)
+        except Exception as e:
+            logger.error(f"Errore parsing email {idx}: {e}")
+            continue
+
+        if not extracted_data:
+            logger.error("No data extracted.")
+            continue
+
+        if idx == 0:
+            messages.info(request, f"Found {len(unread_emails)} new unread emails. Processing...")
+
+        payload = {
+            "latitude": extracted_data['latitude'],
+            "longitude": extracted_data['longitude'],
+            "city": extracted_data['city'],
+            "address": extracted_data['address'],
+            "image_id": extracted_data['image_id'],
+            "image_url": extracted_data['image_url'],
+            "status": "Nuovo"
+        }
+
+        try:
+            response = requests.post(
+                f"{settings.FASTAPI_BASE_URL}/rifiuti/",
+                json=payload,
+                headers=headers
+            )
+
+            if response.status_code == 201:
+                logger.info("✅ Creato record su FastAPI")
+            else:
+                logger.error(f"❌ Errore creazione: {response.status_code} - {response.text}")
+
+        except Exception as e:
+            logger.error(f"Errore chiamata FastAPI: {e}")
+
+    mail.logout()
+
+    # ==========================================================
+    # 📊 QUI STA IL PEZZO CHE TI MANCAVA → POPOLA IL TEMPLATE
+    # ==========================================================
+    emails = EmailData.objects.all().order_by('-image_time').values()
+
+    paginator = Paginator(emails, 10)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+
+    return render(
+        request,
+        'emails/email_list.html',
+        {'emails': emails, 'page_obj': page_obj}
+    )
+
+
+# Vista principale per elaborare le email
+def process_emails_good(request):
     # update to get hard error as inbox not available
     try:
         mail, email_ids, unread_emails = fetch_unread_emails()

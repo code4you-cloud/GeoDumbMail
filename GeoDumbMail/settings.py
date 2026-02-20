@@ -204,7 +204,13 @@ LOGGING = {
 # Use the custom storage backend
 DEFAULT_FILE_STORAGE = "custom_storage.backends.CustomRemoteStorage"
 
-# Parametri configurabili
+# Parametri configurabili per il backend immagini remoto
 REMOTE_STORAGE_UPLOAD_URL = 'https://ws.citylog.cloud/upload'
 REMOTE_STORAGE_MEDIA_URL = 'https://ws.citylog.cloud/media'
 REMOTE_STORAGE_DELETE_URL = "https://ws.citylog.cloud/delete"
+
+# Direttive per accedere agli endpoint FastAPI
+FASTAPI_BASE_URL = "https://api.citylog.cloud"
+#SERVICE_FACEBOOK_ID = "marco@example.com"
+#SERVICE_EMAIL = "marco@example.com"
+
