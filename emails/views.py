@@ -100,7 +100,8 @@ def parse_email_content(email_message):
         address = re.search(r'\*\*Address:\*\*\s*(.+)', text_content)
         image_id = re.search(r'\*\*ImageID:\*\*\s*([a-f0-9\-]+)', text_content)
         ###
-        user_id = re.search(r'\*\*UserID:\*\*\s*(\d+)', text_content)
+        user_id = re.search(r'\*\*UserID:\*\*\s*([^\n\r]+)', text_content) #intercept both authentication
+        #user_id = re.search(r'\*\*UserID:\*\*\s*(\d+)', text_content) #intercept only facebook user_id
 
         image_instance.latitude = latitude.group(1) if latitude else None
         image_instance.longitude = longitude.group(1) if longitude else None
@@ -109,39 +110,71 @@ def parse_email_content(email_message):
         image_instance.image_time = timezone.now()
         image_instance.image_id = image_id.group(1) if image_id else None
         ###
-        facebook_id = user_id.group(1) if user_id else None
+        raw_user_id = user_id.group(1).strip() if user_id else None #bothe F anf G
+        #facebook_id = user_id.group(1).strip() if user_id else None #bothe F anf G
+        #facebook_id = user_id.group(1) if user_id else None #facebook only
         #image_instance.user_id = user_id.group(1) if user_id else None
 
         # Salvo solo l'ID interno nel DB Django
         #image_instance.user_id = user_id_int
+        logger.debug(f"RAW USER ID: {raw_user_id}")
         user_id_int = None
-        if facebook_id:
-            try:
-                resp = requests.get(
-                    f"{settings.FASTAPI_BASE_URL}/facebook/{facebook_id}",
-                    timeout=5
-                )
 
-                logger.debug(f"request get: {resp} as unread")
-                print("STATUS:", resp.status_code)
-                print("RESPONSE:", resp.text)
+        if raw_user_id:
+            provider = "google" if raw_user_id.isdigit() and len(raw_user_id) > 18 else "facebook"
+            logger.debug(f"Provider rilevato: {provider}")
+
+            try:
+                url = f"{settings.FASTAPI_BASE_URL}/{provider}/{raw_user_id}"
+                resp = requests.get(url, timeout=5)
+
+                logger.debug(f"REQUEST URL: {url}")
+                logger.debug(f"STATUS: {resp.status_code}")
+                logger.debug(f"RESPONSE: {resp.text}")
 
                 if resp.status_code == 200:
                     data = resp.json()
-                    user_id_int = resp.json().get("id")
-                    print("User id int:", user_id_int)
+                    user_id_int = data.get("id")
 
-                    if not user_id_int:
-                        print("ID non trovato nella risposta:", data)
-
+                    if user_id_int:
+                        logger.debug(f"User id int: {user_id_int}")
+                    else:
+                        logger.debug(f"ID non trovato nella risposta: {data}")
                 else:
-                    print("FastAPI error:", resp.status_code, resp.text)
+                    logger.debug(f"FastAPI error: {resp.status_code} {resp.text}")
 
             except Exception as e:
-                print("Errore chiamata FastAPI:", e)
+                logger.debug(f"Errore chiamata FastAPI: {e}")
 
         image_instance.user_id = user_id_int
 
+#        if facebook_id:
+#            try:
+#                resp = requests.get(
+#                    f"{settings.FASTAPI_BASE_URL}/facebook/{facebook_id}",
+#                    timeout=5
+#                )
+#
+#                logger.debug(f"request get: {resp} as unread")
+#                print("STATUS:", resp.status_code)
+#                print("RESPONSE:", resp.text)
+#
+#                if resp.status_code == 200:
+#                    data = resp.json()
+#                    user_id_int = resp.json().get("id")
+#                    print("User id int:", user_id_int)
+#
+#                    if not user_id_int:
+#                        print("ID non trovato nella risposta:", data)
+#
+#                else:
+#                    print("FastAPI error:", resp.status_code, resp.text)
+#
+#            except Exception as e:
+#                print("Errore chiamata FastAPI:", e)
+#
+#        image_instance.user_id = user_id_int
+#
         # Solo se l'immagine è presente
         if image_instance.image_file:
             image_instance.image_url = image_instance.image_file.url
