@@ -210,7 +210,40 @@ LOGGING = {
 # Use the custom storage backend
 DEFAULT_FILE_STORAGE = "custom_storage.backends.CustomRemoteStorage"
 
-# Parametri configurabili
-REMOTE_STORAGE_UPLOAD_URL = 'https://ws.citylog.cloud/upload'
-REMOTE_STORAGE_MEDIA_URL = 'https://ws.citylog.cloud/media'
-REMOTE_STORAGE_DELETE_URL = "https://ws.citylog.cloud/delete"
+# Parametri configurabili originali per il backend ufficiale immagini remote - proxmox
+#REMOTE_STORAGE_UPLOAD_URL = 'https://ws.citylog.cloud/upload'
+#REMOTE_STORAGE_MEDIA_URL = 'https://ws.citylog.cloud/media'
+#REMOTE_STORAGE_DELETE_URL = "https://ws.citylog.cloud/delete"
+
+# --- Remote Storage Server Selection ---
+# Cambia REMOTE_STORAGE_ACTIVE_SERVER per shiftare tra i container
+# 'primary'   → ws.citylog.cloud  (proxmox - in manutenzione)
+# 'secondary' → ws2.citylog.cloud (fallback attivoi openvz)
+
+REMOTE_STORAGE_ACTIVE_SERVER = 'secondary'
+
+_REMOTE_STORAGE_SERVERS = {
+    'primary': {
+        # proxmox - originale, ripristinare quando torna disponibile
+        'UPLOAD_URL': 'https://ws.citylog.cloud/upload',
+        'MEDIA_URL':  'https://ws.citylog.cloud/media',
+        'DELETE_URL': 'https://ws.citylog.cloud/delete',
+    },
+    'secondary': {
+        # fallback attivo durante manutenzione ws
+        'UPLOAD_URL': 'https://ws2.citylog.cloud/upload',
+        'MEDIA_URL':  'https://ws2.citylog.cloud/media',
+        'DELETE_URL': 'https://ws2.citylog.cloud/delete',
+    },
+}
+
+_active = _REMOTE_STORAGE_SERVERS[REMOTE_STORAGE_ACTIVE_SERVER]
+REMOTE_STORAGE_UPLOAD_URL = _active['UPLOAD_URL']
+REMOTE_STORAGE_MEDIA_URL  = _active['MEDIA_URL']
+REMOTE_STORAGE_DELETE_URL = _active['DELETE_URL']
+
+# Direttive per accedere agli endpoint FastAPI
+FASTAPI_BASE_URL = "https://api.citylog.cloud"
+#SERVICE_FACEBOOK_ID = "marco@example.com"
+#SERVICE_EMAIL = "marco@example.com"
+

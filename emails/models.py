@@ -37,6 +37,9 @@ class EmailData(models.Model):
         choices=TIPO_SCELTE,
         default='rifiuti',  # Opzione predefinita
     )
+    user_id = models.IntegerField(null=True, blank=True, db_index=True)
+    #user_id = models.CharField(max_length=255, blank=True, null=True)
+    #user_id = models.CharField(max_length=64, null=True, blank=True, db_index=True)
 
     def save(self, *args, **kwargs):
         is_new = self._state.adding  # solo al primo salvataggio
