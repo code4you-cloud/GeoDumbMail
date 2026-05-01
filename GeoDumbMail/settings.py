@@ -214,7 +214,7 @@ DEFAULT_FILE_STORAGE = "custom_storage.backends.CustomRemoteStorage"
 # 'primary'   → ws.citylog.cloud  (proxmox - in manutenzione)
 # 'secondary' → ws2.citylog.cloud (fallback attivoi openvz)
 
-REMOTE_STORAGE_ACTIVE_SERVER = 'secondary'
+REMOTE_STORAGE_ACTIVE_SERVER = 'primary'
 
 _REMOTE_STORAGE_SERVERS = {
     'primary': {
