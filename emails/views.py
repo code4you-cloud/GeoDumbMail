@@ -348,8 +348,42 @@ def save_to_postgresql(latitude, longitude, city, address, image_time, image_id,
         if conn:
             conn.close()
 
+
 # Funzione per salvare i dati in SQLite
-def save_to_sqlite(latitude, longitude, city, address, image_id, image_url):
+def save_to_sqlite(latitude, longitude, city, address, image_id, image_url, db_path='emails.db'):
+    """
+    Salva i dati in SQLite.
+    - db_path: percorso del database (default 'emails.db'; usa ':memory:' per test in RAM)
+    """
+    conn = sqlite3.connect(db_path)
+    c = conn.cursor()
+
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS email_data (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            latitude REAL,
+            longitude REAL,
+            city TEXT,
+            address TEXT,
+            image_id TEXT,
+            image_url TEXT
+        )
+    ''')
+
+    c.execute("SELECT * FROM email_data WHERE image_id = ?", (image_id,))
+    row = c.fetchone()
+    if row:
+        print(f"Duplicate ImageID detected: {image_id}")
+    else:
+        c.execute('''
+            INSERT INTO email_data (latitude, longitude, city, address, image_id, image_url)
+            VALUES (?, ?, ?, ?, ?, ?)
+        ''', (latitude, longitude, city, address, image_id, image_url))
+        conn.commit()
+    conn.close()
+
+# Funzione per salvare i dati in SQLite
+def save_to_sqlite_(latitude, longitude, city, address, image_id, image_url):
     conn = sqlite3.connect('emails.db')
     c = conn.cursor()
 
