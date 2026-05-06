@@ -23,7 +23,7 @@ class EmailData(models.Model):
     city = models.CharField(max_length=100, blank=True, null=True)
     address = models.TextField(blank=True, null=True)
     image_time = models.DateTimeField(null=True, blank=True)
-    image_id = models.CharField(max_length=255, blank=True, null=True)
+    image_id = models.CharField(max_length=255, blank=True, null=True, unique=True)
     image_url = models.CharField(max_length=255,null=True, blank=True)                                   # Mantieni questo se hai bisogno anche dell'URL
     #image_file = models.ImageField(upload_to='uploaded_images/', null=True, blank=True)  # Campo per l'immagine salvata
     image_file = RemoteImageField(
