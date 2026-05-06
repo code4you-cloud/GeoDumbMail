@@ -178,27 +178,56 @@ EMAIL_USE_SSL = False
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
-    'handlers': {
-        'console': {
-            'class': 'logging.StreamHandler',
+    'formatters': {
+        'verbose': {
+            'format': '{levelname} {asctime} {module} {process:d} {thread:d} {message}',
+            'style': '{',
         },
     },
-    'root': {
-        'handlers': ['console'],
-        'level': 'DEBUG',  # Mostra tutti i log (DEBUG e superiori)
+    'handlers': {
+        'console': {
+            'level': 'DEBUG',
+            'class': 'logging.StreamHandler',
+            'formatter': 'verbose',
+        },
     },
     'loggers': {
+        'emails': {  # nome della tua app
+            'handlers': ['console'],
+            'level': 'DEBUG',
+            'propagate': False,
+        },
         'django': {
             'handlers': ['console'],
             'level': 'INFO',
-            'propagate': False,
-        },
-        'tuamodulodjango': {  # Sostituisci con il nome della tua app
-            'handlers': ['console'],
-            'level': 'DEBUG',  # Livello dettagliato per la tua app
         },
     },
 }
+
+#LOGGING = {
+#    'version': 1,
+#    'disable_existing_loggers': False,
+#    'handlers': {
+#        'console': {
+#            'class': 'logging.StreamHandler',
+#        },
+#    },
+#    'root': {
+#        'handlers': ['console'],
+#        'level': 'DEBUG',  # Mostra tutti i log (DEBUG e superiori)
+#    },
+#    'loggers': {
+#        'django': {
+#            'handlers': ['console'],
+#            'level': 'INFO',
+#            'propagate': False,
+#        },
+#        'tuamodulodjango': {  # Sostituisci con il nome della tua app
+#            'handlers': ['console'],
+#            'level': 'DEBUG',  # Livello dettagliato per la tua app
+#        },
+#    },
+#}
 
 
 # Use the custom storage backend
