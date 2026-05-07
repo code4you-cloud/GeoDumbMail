@@ -63,6 +63,7 @@
                         <th>ImageID</th>
                         <th>ImageTime</th>
                         <th>Status</th>
+                        <th>Status_int</th>
                         <th>Preview</th>
                         <th>Typo</th>
                     </tr>
@@ -80,6 +81,7 @@
                         <td>{{ email.image_id }}</td>
                         <td>{{ email.image_time }}</td>
                         <td>{{ email.status }}</td>
+                        <td>{{ email.status_int }}</td>
                         <!--td><a href="{{ email.image_url }}" target="_blank">{{ email.image_url }}</a></td-->
                         <td style="width: 100px; height: 100px;">
                             {% if email.status == '0' %}

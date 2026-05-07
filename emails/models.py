@@ -24,14 +24,33 @@ class EmailData(models.Model):
     address = models.TextField(blank=True, null=True)
     image_time = models.DateTimeField(null=True, blank=True)
     image_id = models.CharField(max_length=255, blank=True, null=True, unique=True)
-    image_url = models.CharField(max_length=255,null=True, blank=True)                                   # Mantieni questo se hai bisogno anche dell'URL
+    image_url = models.CharField(max_length=255,null=True, blank=True)                    # Mantieni questo se hai bisogno anche dell'URL
     #image_file = models.ImageField(upload_to='uploaded_images/', null=True, blank=True)  # Campo per l'immagine salvata
     image_file = RemoteImageField(
         upload_to='uploaded_images/',
         null=True,
         blank=True
     )
-    status = models.CharField(max_length=50, default='Nuovo')                            # Stato della segnalazione
+    status = models.CharField(max_length=50, default='Nuovo')   # Stato della segnalazione
+
+    # Nuovo campo integer con le tue scelte
+    class StatusInt(models.IntegerChoices):
+        NEW = 0, 'Nuovo'
+        PROCESSING = 10, 'In elaborazione'
+        GEOCODED = 20, 'Geolocalizzato'
+        COMPLETED = 30, 'Completato'
+        DUPLICATE = 40, 'Duplicato'
+        ERROR = 50, 'Errore'
+        SKIPPED = 60, 'Saltato'
+        PENDING_REVIEW = 70, 'In attesa di revisione'
+
+    status_int = models.IntegerField(
+        choices=StatusInt.choices,
+        null=True,           # inizialmente null per i record esistenti
+        blank=True,
+        db_index=True
+    )
+
     typo = models.CharField(
         max_length=20,
         choices=TIPO_SCELTE,

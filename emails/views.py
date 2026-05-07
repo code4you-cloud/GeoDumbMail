@@ -23,6 +23,7 @@ from django.core.files.storage import default_storage
 from django.core.paginator import Paginator
 from django.contrib import messages
 from django.db.models import Count, Q
+from django.db import transaction
 from django.conf import settings
 
 from django.shortcuts import get_object_or_404, redirect
@@ -428,6 +429,7 @@ def process_emails(request):
 
         if existing:
             existing.status = 'In elaborazione'
+            existing.status_int = EmailData.StatusInt.PROCESSING   # 10
             existing.save()
             logger.info(f"Aggiornato record esistente ID {existing.id}")
         else:
@@ -440,7 +442,8 @@ def process_emails(request):
                 image_id=extracted_data['image_id'],
                 image_url=extracted_data['image_url'],
                 image_file=extracted_data['image_file'],
-                status='Nuovo'
+                status='Nuovo',
+                status_int = EmailData.StatusInt.NEW
                 ##
                 ##image_file=extracted_data['user_id'],
             )
@@ -552,6 +555,52 @@ def save_image_from_email(email_message):
                 logger.error("Image content could not be decoded.")
 
 def check_and_update_database():
+    """
+    Trova record con stesso indirizzo, marca il primo (o il migliore) come 'NEW',
+    gli altri come 'DUPLICATE'. Usa status_int.
+    """
+    # Trova gli indirizzi duplicati
+    duplicates = (
+        EmailData.objects.values('address')
+        .annotate(cnt=Count('id'))
+        .filter(cnt__gt=1)
+    )
+
+    if not duplicates:
+        logger.info("Nessun indirizzo duplicato trovato.")
+        return
+
+    for dup in duplicates:
+        address = dup['address']
+        # Recupera i record per questo indirizzo, ordinati per id (o per data, o per presenza immagine)
+        records = EmailData.objects.filter(address=address).order_by('id')
+
+        # Decidi quale record tenere come "principale" (es. quello con immagine valida, o il più recente)
+        best = None
+        for rec in records:
+            # Esempio: meglio un record con image_url non vuoto e status non già duplicato
+            if rec.image_url and not rec.status_int == EmailData.StatusInt.DUPLICATE:
+                best = rec
+                break
+        if not best:
+            best = records.first()  # fallback: il più vecchio
+
+        # Aggiorna tutti i record in una singola transazione
+        with transaction.atomic():
+            # Imposta il migliore come NEW (0) se non lo è già
+            if best.status_int != EmailData.StatusInt.NEW:
+                best.status_int = EmailData.StatusInt.NEW
+                best.save(update_fields=['status_int'])
+                logger.info(f"Record {best.id} (address={address}) → NEW")
+
+            # Tutti gli altri diventano DUPLICATE (40)
+            others = records.exclude(id=best.id)
+            updated = others.update(status_int=EmailData.StatusInt.DUPLICATE)
+            logger.info(f"{updated} record marcati come DUPLICATE per address {address}")
+
+    logger.info("Controllo duplicati per indirizzo completato.")
+
+def check_and_update_database_():
     """
     Funzione per controllare e aggiornare i record nel database anche quando non ci sono nuove email da leggere.
     """
