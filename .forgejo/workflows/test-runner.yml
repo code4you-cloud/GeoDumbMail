@@ -1,0 +1,7 @@
+name: Test Runner
+on: [push, workflow_dispatch]
+jobs:
+  test:
+    runs-on: self-hosted
+    steps:
+      - run: echo "Runner attivo e funzionante!"
