@@ -23,16 +23,19 @@ jobs:
         ports:
           - 5432:5432
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-        with:
-          submodules: false          # Evita errori su submodule problematici
-          fetch-depth: 1
+      - name: Clone repository (without submodules)
+        run: |
+          git clone --depth 1 --no-checkout https://forgejo.code4you.cloud/orfeo/GeoDumbMail.git .
+          git checkout ${{ github.ref_name }}
+          # Rimuove il file .gitmodules per evitare che git lo elabori
+          rm -f .gitmodules
+        env:
+          GIT_ASKPASS: echo ${{ secrets.PAT }}   # se repo privato, altrimenti rimuovi questa riga
 
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11'    # Versione stabile e supportata (evita errore 3.13)
+          python-version: '3.11'
 
       - name: Cache Poetry dependencies
         uses: actions/cache@v4
