@@ -1,5 +1,5 @@
 name: Django CI with PostgreSQL
-env:                                  # <--- QUI (globale per tutti i job)
+env:
   ACTIONS_STEP_DEBUG: true
   ACTIONS_RUNNER_DEBUG: true
 on:
@@ -26,19 +26,33 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
-          submodules: false   # evita di inizializzare i submodule
+          submodules: false          # Evita errori su submodule problematici
+          fetch-depth: 1
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.13'
+          python-version: '3.11'    # Versione stabile e supportata (evita errore 3.13)
+
+      - name: Cache Poetry dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pypoetry
+          key: ${{ runner.os }}-poetry-${{ hashFiles('poetry.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-poetry-
+
       - name: Install Poetry
         run: pip install poetry
+
       - name: Install dependencies
         run: poetry install --no-interaction
+
       - name: Run migrations
         run: poetry run python manage.py migrate
         env:
           DATABASE_URL: postgresql://test_user:test_pass@localhost:5432/test_geodumb
+
       - name: Run tests
         run: poetry run pytest --ignore=test_mail.py -v
         env:
