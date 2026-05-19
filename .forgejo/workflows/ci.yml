@@ -25,12 +25,10 @@ jobs:
     steps:
       - name: Clone repository (without submodules)
         run: |
-          git clone --depth 1 --no-checkout https://forgejo.code4you.cloud/orfeo/GeoDumbMail.git .
-          git checkout ${{ github.ref_name }}
-          # Rimuove il file .gitmodules per evitare che git lo elabori
+          git clone --depth 1 --branch ${{ github.ref_name }} https://forgejo.code4you.cloud/orfeo/GeoDumbMail.git .
           rm -f .gitmodules
         env:
-          GIT_ASKPASS: echo ${{ secrets.PAT }}   # se repo privato, altrimenti rimuovi questa riga
+          GIT_ASKPASS: echo ${{ secrets.PAT }}   # se repo privato, altrimenti rimuovi
 
       - name: Set up Python
         uses: actions/setup-python@v5
