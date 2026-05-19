@@ -1,14 +1,41 @@
-name: Test CI Pipeline
+name: CI Django
 on:
   push:
     branches: [ develop, main ]
+  pull_request:
+    branches: [ develop ]
   workflow_dispatch:
 
 jobs:
   test:
-    runs-on: docker
+    runs-on: self-hosted
     steps:
-      - name: Checkout repository
+      - name: Checkout
         uses: actions/checkout@v4
-      - name: Run a simple test
-        run: echo "CI funziona! Runner attivo."
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Poetry
+        run: pip install poetry
+
+      - name: Install dependencies
+        run: poetry install --no-interaction
+
+      - name: Run migrations (test DB)
+        run: poetry run python manage.py migrate
+        env:
+          DATABASE_URL: sqlite:///:memory:   # oppure usa PostgreSQL container
+
+      - name: Run tests
+        run: poetry run pytest --ignore=test_mail.py -v
+        env:
+          DATABASE_URL: sqlite:///:memory:
+          CI: true
+
+      - name: Lint with flake8 (opzionale)
+        run: |
+          poetry add --group dev flake8
+          poetry run flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
