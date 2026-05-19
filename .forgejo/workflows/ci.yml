@@ -1,4 +1,7 @@
 name: Django CI with PostgreSQL
+env:                                  # <--- QUI (globale per tutti i job)
+  ACTIONS_STEP_DEBUG: true
+  ACTIONS_RUNNER_DEBUG: true
 on:
   push:
     branches: [ develop, main, develop-setup-tests ]
