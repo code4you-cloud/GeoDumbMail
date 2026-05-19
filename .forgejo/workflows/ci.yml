@@ -1,7 +1,7 @@
 name: Django CI with PostgreSQL
 on:
   push:
-    branches: [ develop, main ]
+    branches: [ develop, main, develop-setup-tests ]
   pull_request:
     branches: [ develop ]
   workflow_dispatch:
