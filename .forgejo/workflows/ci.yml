@@ -1,4 +1,4 @@
-name: CI Django
+name: Django CI with PostgreSQL
 on:
   push:
     branches: [ develop, main ]
@@ -9,11 +9,27 @@ on:
 jobs:
   test:
     runs-on: self-hosted
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_DB: test_geodumb
+          POSTGRES_USER: test_user
+          POSTGRES_PASSWORD: test_pass
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
     steps:
-      - name: Checkout
+      - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup Python
+      - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
@@ -24,18 +40,13 @@ jobs:
       - name: Install dependencies
         run: poetry install --no-interaction
 
-      - name: Run migrations (test DB)
+      - name: Run migrations
         run: poetry run python manage.py migrate
         env:
-          DATABASE_URL: sqlite:///:memory:   # oppure usa PostgreSQL container
+          DATABASE_URL: postgresql://test_user:test_pass@localhost:5432/test_geodumb
 
       - name: Run tests
         run: poetry run pytest --ignore=test_mail.py -v
         env:
-          DATABASE_URL: sqlite:///:memory:
+          DATABASE_URL: postgresql://test_user:test_pass@localhost:5432/test_geodumb
           CI: true
-
-      - name: Lint with flake8 (opzionale)
-        run: |
-          poetry add --group dev flake8
-          poetry run flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
