@@ -1,7 +1,4 @@
 name: Django CI with PostgreSQL
-env:
-  ACTIONS_STEP_DEBUG: true
-  ACTIONS_RUNNER_DEBUG: true
 on:
   push:
     branches: [ develop, main, develop-setup-tests ]
@@ -12,6 +9,8 @@ on:
 jobs:
   test:
     runs-on: self-hosted
+    container: ubuntu:22.04   # Ambiente standard (risolve setup-python)
+
     services:
       postgres:
         image: postgres:15
@@ -22,13 +21,16 @@ jobs:
         options: --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
         ports:
           - 5432:5432
+
     steps:
       - name: Clone repository (without submodules)
         run: |
           git clone --depth 1 --branch ${{ github.ref_name }} https://forgejo.code4you.cloud/orfeo/GeoDumbMail.git .
-          rm -f .gitmodules
+          rm -f .gitmodules   # Elimina il file che causa l'errore del submodule
         env:
-          GIT_ASKPASS: echo ${{ secrets.PAT }}   # se repo privato, altrimenti rimuovi
+          # Se il repository è pubblico, rimuovi la riga seguente.
+          # Se è privato, crea un secret chiamato PAT con un token valido.
+          GIT_ASKPASS: echo ${{ secrets.PAT }}
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -52,10 +54,10 @@ jobs:
       - name: Run migrations
         run: poetry run python manage.py migrate
         env:
-          DATABASE_URL: postgresql://test_user:test_pass@localhost:5432/test_geodumb
+          DATABASE_URL: postgresql://test_user:test_pass@postgres:5432/test_geodumb
 
       - name: Run tests
         run: poetry run pytest --ignore=test_mail.py -v
         env:
-          DATABASE_URL: postgresql://test_user:test_pass@localhost:5432/test_geodumb
+          DATABASE_URL: postgresql://test_user:test_pass@postgres:5432/test_geodumb
           CI: true
