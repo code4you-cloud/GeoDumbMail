@@ -23,38 +23,30 @@ jobs:
           - 5432:5432
 
     steps:
-      - name: Install system dependencies (git, Node.js 18)
+      - name: Install system dependencies (Git, Python 3.11, Poetry)
         run: |
           apt-get update
-          apt-get install -y git ca-certificates curl
-          curl -fsSL https://deb.nodesource.com/setup_18.x | bash -
-          apt-get install -y nodejs
+          apt-get install -y git curl software-properties-common
+          add-apt-repository ppa:deadsnakes/ppa -y
+          apt-get update
+          apt-get install -y python3.11 python3.11-venv python3.11-dev
+          # Imposta python3.11 come default
+          update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.11 1
+          update-alternatives --set python3 /usr/bin/python3.11
+          # Installa Poetry
+          curl -sSL https://install.python-poetry.org | python3 -
+          # Aggiungi Poetry al PATH per gli step successivi
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
 
       - name: Clone repository (without submodules)
         run: |
           git clone --depth 1 --branch ${{ github.ref_name }} https://forgejo.code4you.cloud/orfeo/GeoDumbMail.git .
           rm -f .gitmodules
         env:
-          # Se il repository è privato, decommenta la riga seguente e assicurati di avere il secret PAT.
+          # Se il repository è privato, decommenta la riga seguente e imposta il secret PAT
           # GIT_ASKPASS: echo ${{ secrets.PAT }}
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-
-      - name: Cache Poetry dependencies
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/pypoetry
-          key: ${{ runner.os }}-poetry-${{ hashFiles('poetry.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-poetry-
-
-      - name: Install Poetry
-        run: pip install poetry
-
-      - name: Install dependencies
+      - name: Install Python dependencies
         run: poetry install --no-interaction
 
       - name: Run migrations
