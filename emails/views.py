@@ -264,111 +264,40 @@ def save_to_postgresql(latitude, longitude, city, address, image_id, image_time,
 
 
 # Funzione per salvare i dati in SQLite
-def save_to_sqlite(latitude, longitude, city, address, image_id, image_time, image_url, db_path='emails.db'):
-    conn = sqlite3.connect(db_path)
-    c = conn.cursor()
-    c.execute('''
-        CREATE TABLE IF NOT EXISTS email_data (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            latitude REAL,
-            longitude REAL,
-            city TEXT,
-            address TEXT,
-            image_id TEXT,
-            image_time TEXT,
-            image_url TEXT
-        )
-    ''')
-    # Usa INSERT OR REPLACE: se image_id esiste, aggiorna tutte le colonne
-    c.execute('''
-        INSERT OR REPLACE INTO email_data
-        (id, latitude, longitude, city, address, image_id, image_time, image_url)
-        VALUES (
-            COALESCE((SELECT id FROM email_data WHERE image_id = ?), NULL),
-            ?, ?, ?, ?, ?, ?, ?
-        )
-    ''', (image_id, latitude, longitude, city, address, image_id, image_time, image_url))
-    conn.commit()
-    conn.close()
+#def save_to_sqlite(latitude, longitude, city, address, image_id, image_time, image_url, db_path='emails.db'):
+#	"""
+#    Salva o aggiorna un record nel database sqlite usando l'ORM di Django.
 
-# Funzione per salvare i dati in SQLite
-def save_to_sqlite__(latitude, longitude, city, address, image_id, image_time, image_url, db_path='emails.db'):
-    """
-    Salva i dati in SQLite.
-    - db_path: percorso del database (default 'emails.db'; usa ':memory:' per test in RAM)
-    """
-    conn = sqlite3.connect(db_path)
-    c = conn.cursor()
-
-    c.execute('''
-        CREATE TABLE IF NOT EXISTS email_data (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            latitude REAL,
-            longitude REAL,
-            city TEXT,
-            address TEXT,
-            image_id TEXT,
-            image_time TEXT,
-            image_url TEXT
-        )
-    ''')
-
-    c.execute("SELECT * FROM email_data WHERE image_id = ?", (image_id,))
-    row = c.fetchone()
-    if row:
-        print(f"Duplicate ImageID detected: {image_id}")
-    else:
-        # Usa INSERT OR REPLACE: se image_id esiste, aggiorna tutte le colonne
-        c.execute('''
-            INSERT OR REPLACE INTO email_data
-            (id, latitude, longitude, city, address, image_id, image_time, image_url)
-            VALUES (
-                COALESCE((SELECT id FROM email_data WHERE image_id = ?), NULL),
-                ?, ?, ?, ?, ?, ?, ?
-            )
-        ''', (image_id, latitude, longitude, city, address, image_id, image_time, image_url))
-
-        #c.execute('''
-        #    INSERT INTO email_data (latitude, longitude, city, address, image_id, image_time, image_url)
-        #    VALUES (?, ?, ?, ?, ?, ?, ?)
-        #''', (latitude, longitude, city, address, image_id, image_time, image_url))
-        conn.commit()
-    conn.close()
-
-# Funzione per salvare i dati in SQLite
-def save_to_sqlite_(latitude, longitude, city, address, image_id, image_time, image_url):
-    conn = sqlite3.connect('emails.db')
-    c = conn.cursor()
-
-    # Creazione della tabella se non esiste
-    c.execute('''
-        CREATE TABLE IF NOT EXISTS email_data (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            latitude REAL,
-            longitude REAL,
-            city TEXT,
-            address TEXT,
-            image_id TEXT,
-            image_time TEXT,
-            image_url TEXT
-        )
-    ''')
-
-    # Verifica valore ImageID
-    c.execute("SELECT * FROM email_data WHERE image_id=?", (image_id,))
-    row = c.fetchone()
-    print(f'ROW: {row}')
-
-    if row:
-        print(f"Duplicate ImageID detected: {'image_id'}")
-    else:
-        c.execute('''
-            INSERT INTO email_data (latitude, longitude, city, address, image_id, image_time, image_url)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-        ''', (latitude, longitude, city, address, image_id, image_time, image_url))
-        conn.commit()
-
-    conn.close()
+#    Argomenti:
+#        - image_time: datetime object (timezone-aware) o stringa convertibile
+#        - image_file: percorso/URL del file (opzionale)
+#        - status: intero (default 0)
+#    """
+#    conn = sqlite3.connect(db_path)
+#    c = conn.cursor()
+#    c.execute('''
+#        CREATE TABLE IF NOT EXISTS email_data (
+#            id INTEGER PRIMARY KEY AUTOINCREMENT,
+#            latitude REAL,
+#            longitude REAL,
+#            city TEXT,
+#            address TEXT,
+#            image_id TEXT,
+#            image_time TEXT,
+#            image_url TEXT
+#        )
+#    ''')
+#    # Usa INSERT OR REPLACE: se image_id esiste, aggiorna tutte le colonne
+#    c.execute('''
+#        INSERT OR REPLACE INTO email_data
+#        (id, latitude, longitude, city, address, image_id, image_time, image_url)
+#        VALUES (
+#            COALESCE((SELECT id FROM email_data WHERE image_id = ?), NULL),
+#            ?, ?, ?, ?, ?, ?, ?
+#        )
+#    ''', (image_id, latitude, longitude, city, address, image_id, image_time, image_url))
+#    conn.commit()
+#    conn.close()
 
 # Funzione per marcare le email come non lette se non sono stati estratti dati
 def mark_as_unread(mail, email_id):
@@ -422,13 +351,22 @@ def process_emails(request):
             logger.warning(f"Nessun dato estratto dall'email {idx}")
             continue
 
+        # normalizza i valori attualmente in varchar
+        lat_norm = normalize_coord(extracted_data['latitude'])
+        lon_norm = normalize_coord(extracted_data['longitude'])
+
         existing = EmailData.objects.filter(
-            latitude=extracted_data['latitude'],
-            longitude=extracted_data['longitude']
+            latitude=lat_norm,
+            longitude=lon_norm
         ).first()
 
+        #existing = EmailData.objects.filter(
+        #    latitude=extracted_data['latitude'],
+        #    longitude=extracted_data['longitude']
+        #).first()
+
         if existing:
-            existing.status = 'In elaborazione'
+            existing.status = 'Nuovo: In elaborazione'
             existing.status_int = EmailData.StatusInt.PROCESSING   # 10
             existing.save()
             logger.info(f"Aggiornato record esistente ID {existing.id}")
@@ -442,7 +380,7 @@ def process_emails(request):
                 image_id=extracted_data['image_id'],
                 image_url=extracted_data['image_url'],
                 image_file=extracted_data['image_file'],
-                status='Nuovo',
+                status='Replicato',
                 status_int = EmailData.StatusInt.NEW
                 ##
                 ##image_file=extracted_data['user_id'],
@@ -600,42 +538,6 @@ def check_and_update_database():
 
     logger.info("Controllo duplicati per indirizzo completato.")
 
-def check_and_update_database_():
-    """
-    Funzione per controllare e aggiornare i record nel database anche quando non ci sono nuove email da leggere.
-    """
-    # Ottieni tutti i record dal database
-    all_emails = EmailData.objects.all()
-
-    # Verifica se ci sono record duplicati basati sull'indirizzo
-    duplicates = (
-        EmailData.objects
-        .values('address')
-        .annotate(count=Count('id'))
-        .filter(count__gt=1)
-    )
-
-    for duplicate in duplicates:
-        address = duplicate['address']
-
-        # Ottieni tutti i record con lo stesso indirizzo
-        duplicate_records = EmailData.objects.filter(address=address)
-
-        # Imposta il primo record come 'In elaborazione' e il resto come 'Duplicato'
-        first_record = True
-        for record in duplicate_records:
-            if first_record:
-                record.status = '0'
-                first_record = False
-            else:
-                record.status = '1'
-
-            # Salva il record aggiornato
-            record.save()
-            logger.info(f"Updated record {record.id} with status: {record.status}")
-
-    logger.info("Database check and update completed.")
-
 # ricerca condizioni
 def search_emails_list(request):
     query = request.GET.get('q', '').strip()
@@ -664,19 +566,6 @@ def search_emails_list(request):
     # Attenzione: dopo .order_by(), emails è ancora una QuerySet non valutata.
     # Se vuoi vedere anche il conteggio dei risultati:
     logger.debug(f"COUNT: {emails.count()}")  # questo valuta la query
-
-    return render(request, 'emails/email_list.html', {'emails': emails, 'query': query})
-
-def search_emails_list_(request):
-    query = request.GET.get('q')  # Recupera il parametro di ricerca dalla query string
-    emails = EmailData.objects.all()
-
-    if query:
-        # Filtra i risultati in base alla query di ricerca
-        emails = emails.filter(
-            Q(city__icontains=query) |
-            Q(address__icontains=query)
-        )
 
     return render(request, 'emails/email_list.html', {'emails': emails, 'query': query})
 
@@ -710,3 +599,10 @@ def update_typo(request, email_id):
 
 def update_in_progress(request):
         return render(request, 'emails/update_in_progress.html')
+
+def normalize_coord(request, value: str) -> str:
+    """Arrotonda la coordinata a 6 decimali e restituisce come stringa."""
+    try:
+        return f"{float(value):.6f}"
+    except (TypeError, ValueError):
+        return value
