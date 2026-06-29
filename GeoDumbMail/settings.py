@@ -204,30 +204,30 @@ LOGGING = {
     },
 }
 
-#LOGGING = {
-#    'version': 1,
-#    'disable_existing_loggers': False,
-#    'handlers': {
-#        'console': {
-#            'class': 'logging.StreamHandler',
-#        },
-#    },
-#    'root': {
-#        'handlers': ['console'],
-#        'level': 'DEBUG',  # Mostra tutti i log (DEBUG e superiori)
-#    },
-#    'loggers': {
-#        'django': {
-#            'handlers': ['console'],
-#            'level': 'INFO',
-#            'propagate': False,
-#        },
-#        'tuamodulodjango': {  # Sostituisci con il nome della tua app
-#            'handlers': ['console'],
-#            'level': 'DEBUG',  # Livello dettagliato per la tua app
-#        },
-#    },
-#}
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+        },
+    },
+    'root': {
+        'handlers': ['console'],
+        'level': 'DEBUG',  # Mostra tutti i log (DEBUG e superiori)
+    },
+    'loggers': {
+        'django': {
+            'handlers': ['console'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+        'tuamodulodjango': {  # Sostituisci con il nome della tua app
+            'handlers': ['console'],
+            'level': 'DEBUG',  # Livello dettagliato per la tua app
+        },
+    },
+}
 
 
 # Use the custom storage backend
@@ -258,6 +258,12 @@ _REMOTE_STORAGE_SERVERS = {
         'MEDIA_URL':  'https://ws2.citylog.cloud/media',
         'DELETE_URL': 'https://ws2.citylog.cloud/delete',
     },
+    'thernary': {
+        # fallback attivo durante manutenzione ws
+        'UPLOAD_URL': 'https://ws3.citylog.cloud/upload',
+        'MEDIA_URL':  'https://ws3.citylog.cloud/media',
+        'DELETE_URL': 'https://ws3.citylog.cloud/delete',
+    },
 }
 
 _active = _REMOTE_STORAGE_SERVERS[REMOTE_STORAGE_ACTIVE_SERVER]
@@ -266,7 +272,7 @@ REMOTE_STORAGE_MEDIA_URL  = _active['MEDIA_URL']
 REMOTE_STORAGE_DELETE_URL = _active['DELETE_URL']
 
 # Direttive per accedere agli endpoint FastAPI
-FASTAPI_BASE_URL = "https://api.citylog.cloud"
+FASTAPI_BASE_URL = "https://api.citylog.cloud/"
 #SERVICE_FACEBOOK_ID = "marco@example.com"
 #SERVICE_EMAIL = "marco@example.com"
 
