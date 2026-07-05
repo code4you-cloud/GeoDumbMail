@@ -34,7 +34,7 @@ from django.conf import settings
 from django.shortcuts import get_object_or_404, redirect
 from django.http import HttpResponseRedirect
 
-from .models import EmailData  # Importa il modello se hai definito uno in models.py
+from .models import EmailData, Users  # Importa il modello se hai definito uno in models.py
 
 # Configura il logger
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -437,14 +437,15 @@ def process_emails(request):
         logger.error(f"Errore durante il fetch delle email: {str(e)}", exc_info=True)
         return redirect('update_in_progress')
 
-    if not unread_emails:
-        messages.warning(request, "No new unread emails found. App is idle, waiting for new emails...")
-        emails = EmailData.objects.all().order_by('-image_time', 'id').values()
-        paginator = Paginator(emails, 10)
-        page_number = request.GET.get('page')
-        page_obj = paginator.get_page(page_number)
-        return render(request, 'emails/email_list.html', {'emails': emails, 'page_obj': page_obj})
-
+#    if not unread_emails:
+#        messages.warning(request, "No new unread emails found. App is idle, waiting for new emails...")
+#        emails = EmailData.objects.all().order_by('-image_time', 'id').values()
+#        enriched_emails = enrich_emails_with_social(emails, headers)
+#        paginator = Paginator(emails, 10)
+#        page_number = request.GET.get('page')
+#        page_obj = paginator.get_page(page_number)
+#        return render(request, 'emails/email_list.html', {'emails': emails, 'page_obj': page_obj})
+#
     # --- Step 1: Autenticazione servizio Django → FastAPI (una sola volta) ---
     try:
         auth_response = requests.post(
@@ -457,6 +458,8 @@ def process_emails(request):
     except Exception as e:
         logger.error(f"Autenticazione FastAPI fallita: {e}")
         messages.error(request, "Autenticazione FastAPI fallita.")
+        # Se fallisce, mostra email senza social
+        headers = None
         return redirect('update_in_progress')
 
     # ✅ MAPPA TIPOLOGIA → ENDPOINT
@@ -470,6 +473,19 @@ def process_emails(request):
         'api': '/api/',
         'rimuovi': '/rimuovi/',
     }
+
+    if not unread_emails:
+        messages.warning(request, "No new unread emails found. App is idle, waiting for new emails...")
+        emails = EmailData.objects.all().order_by('-image_time', 'id').values()
+
+        # ✅ headers esiste sempre (anche se None)
+        enriched_emails = enrich_emails_with_social(emails, headers)
+        paginator = Paginator(emails, 10)
+        page_number = request.GET.get('page')
+        page_obj = paginator.get_page(page_number)
+        return render(request, 'emails/email_list.html', {'emails': enriched_emails, 'page_obj': page_obj})
+        #return render(request, 'emails/email_list.html', {'emails': emails, 'page_obj': page_obj})
+
 
     # --- Step 2: Estrai dati e invia direttamente a FastAPI ---
     sent_count = 0
@@ -572,11 +588,44 @@ def process_emails(request):
     messages.success(request, f"Elaborazione completata. {sent_count} segnalazioni inviate a FastAPI.")
 
     emails = EmailData.objects.all().order_by('-image_time').values()
+
+    # ✅ Arricchisci con i dati social - con funzione dedicata
+    enriched_emails = enrich_emails_with_social(emails, headers)
+
+    # ✅ AGGIUNGI QUI: Arricchisci con i dati social
+#    enriched_emails = []
+#    for email in emails:
+#        email_dict = dict(email)  # Converte ValuesQuerySet in dict
+#        try:
+#            response = requests.get(
+#                f"{settings.FASTAPI_BASE_URL}/users/me/rate-social",
+#                params={'user_id': email_dict.get('user_id')},
+#                headers=headers
+#            )
+#            data = response.json() if response.status_code == 200 else {}
+#            email_dict['social_type'] = data.get('social_type', 'Email')
+#            email_dict['display_name'] = data.get('display_name', 'N/A')
+#        except:
+#            email_dict['social_type'] = 'Email'
+#            email_dict['display_name'] = 'N/A'
+#            print(f"USER ID: {user.id}, USERNAME: '{user.username}'")
+#            print(f"Username inizia con 'google_'? {user.username.startswith('google_')}")
+#            print(f"Username inizia con 'fb_'? {user.username.startswith('fb_')}")
+#
+#            email_dict['social_type'] = user.social_type
+#            email_dict['display_name'] = user.display_name
+#
+#            # 🔍 DEBUG: Vedi cosa restituisce
+#            print(f"social_type calcolato: {email_dict['social_type']}")
+#
+#        enriched_emails.append(email_dict)
+#
     paginator = Paginator(emails, 10)
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
 
-    return render(request, 'emails/email_list.html', {'emails': emails, 'page_obj': page_obj})
+    return render(request, 'emails/email_list.html', {'emails': enriched_emails, 'page_obj': page_obj})
+    #return render(request, 'emails/email_list.html', {'emails': emails, 'page_obj': page_obj})
 
 def get_fastapi_token():
     try:
@@ -919,4 +968,45 @@ def update_typo(request, email_id):
         return HttpResponseRedirect(request.META.get('HTTP_REFERER', '/'))
 
 def update_in_progress(request):
-        return render(request, 'emails/update_in_progress.html')
+    return render(request, 'emails/update_in_progress.html')
+
+def enrich_emails_with_social(emails, headers=None):
+    """Arricchisce le email con i dati social da FastAPI"""
+    # Pre-carica tutti gli utenti in una volta
+    user_ids = list(set([e.get('user_id') for e in emails if e.get('user_id')]))
+    users = {u.id: u for u in Users.objects.filter(id__in=user_ids)}
+
+    enriched = []
+    for email in emails:
+        email_dict = dict(email)
+        user = users.get(email_dict.get('user_id'))
+        if user:
+            email_dict['social_type'] = user.social_type
+            email_dict['display_name'] = user.display_name
+        else:
+            email_dict['social_type'] = 'Email'
+            email_dict['display_name'] = 'N/A'
+        enriched.append(email_dict)
+
+    return enriched
+
+def enrich_emails_with_social_(emails, headers):
+    """Arricchisce le email con i dati social da FastAPI"""
+    enriched = []
+    for email in emails:
+        email_dict = dict(email)
+        try:
+            response = requests.get(
+                f"{settings.FASTAPI_BASE_URL}/users/me/rate-social",
+                params={'user_id': email_dict.get('user_id')},
+                headers=headers,
+                timeout=5
+            )
+            data = response.json() if response.status_code == 200 else {}
+            email_dict['social_type'] = data.get('social_type', 'Email')
+            email_dict['display_name'] = data.get('display_name', 'N/A')
+        except:
+            email_dict['social_type'] = 'Email'
+            email_dict['display_name'] = 'N/A'
+        enriched.append(email_dict)
+    return enriched

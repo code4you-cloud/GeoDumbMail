@@ -5,6 +5,32 @@ from emails.fields import RemoteImageField
 from custom_storage.backends import CustomRemoteStorage
 
 # Create your models here.
+# emails/models.py
+class Users(models.Model):  # ← Nome della classe = Nome della tabella
+    """
+    Recover table users form project citylog site
+    """
+    id = models.IntegerField(primary_key=True)
+    username = models.CharField(max_length=150)
+
+    class Meta:
+        managed = False
+        db_table = 'users'  # ← Nome esatto nel database
+
+    @property
+    def social_type(self):
+        if self.username.startswith('google_'):
+            return 'Google'
+        elif self.username.startswith('fb_'):
+            return 'Facebook'
+        return 'Email'
+
+    @property
+    def display_name(self):
+        if '_' in self.username:
+            return self.username.split('_', 1)[1]
+        return self.username
+
 class EmailData(models.Model):
     # Definire le opzioni per il campo 'typo'
     TIPO_SCELTE = [
@@ -32,6 +58,7 @@ class EmailData(models.Model):
         blank=True
     )
     status = models.CharField(max_length=50, default='Nuovo')   # Stato della segnalazione
+    quartiere = models.CharField(max_length=255, null=True, blank=True)   # Stato della segnalazione
 
     # Nuovo campo integer con le tue scelte
     class StatusInt(models.IntegerChoices):
@@ -67,12 +94,6 @@ class EmailData(models.Model):
         if is_new and self.image_file and not self.image_url:
             self.image_url = self.image_file.url
             super().save(update_fields=["image_url"])
-
-    #def save(self, *args, **kwargs):
-    #    super().save(*args, **kwargs)
-    #    if self.image_file and (not self.image_url or self.image_url != self.image_file.url):
-    #        self.image_url = self.image_file.url
-    #        super().save(update_fields=["image_url"])
 
     def image_preview(self):
         if self.image_file:
