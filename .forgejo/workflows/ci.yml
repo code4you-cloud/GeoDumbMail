@@ -1,14 +1,61 @@
-name: Test CI Pipeline
+name: Django CI with PostgreSQL
 on:
   push:
-    branches: [ develop, main ]
+    branches: [ develop, main, develop-setup-tests ]
+  pull_request:
+    branches: [ develop ]
   workflow_dispatch:
 
 jobs:
   test:
-    runs-on: docker
+    runs-on: self-hosted
+    container: ubuntu:22.04
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_DB: test_geodumb
+          POSTGRES_USER: test_user
+          POSTGRES_PASSWORD: test_pass
+        options: --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
+        ports:
+          - 5432:5432
+
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-      - name: Run a simple test
-        run: echo "CI funziona! Runner attivo."
+      - name: Install system dependencies (Git, Python 3.11, Poetry)
+        run: |
+          apt-get update
+          apt-get install -y git curl software-properties-common
+          add-apt-repository ppa:deadsnakes/ppa -y
+          apt-get update
+          apt-get install -y python3.11 python3.11-venv python3.11-dev
+          # Imposta python3.11 come default
+          update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.11 1
+          update-alternatives --set python3 /usr/bin/python3.11
+          # Installa Poetry
+          curl -sSL https://install.python-poetry.org | python3 -
+          # Aggiungi Poetry al PATH per gli step successivi
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+
+      - name: Clone repository (without submodules)
+        run: |
+          git clone --depth 1 --branch ${{ github.ref_name }} https://forgejo.code4you.cloud/orfeo/GeoDumbMail.git .
+          rm -f .gitmodules
+        env:
+          # Se il repository è privato, decommenta la riga seguente e imposta il secret PAT
+          # GIT_ASKPASS: echo ${{ secrets.PAT }}
+
+      - name: Install Python dependencies
+        run: poetry install --no-interaction
+
+      - name: Run migrations
+        run: poetry run python manage.py migrate
+        env:
+          DATABASE_URL: postgresql://test_user:test_pass@postgres:5432/test_geodumb
+
+      - name: Run tests
+        run: poetry run pytest --ignore=test_mail.py -v
+        env:
+          DATABASE_URL: postgresql://test_user:test_pass@postgres:5432/test_geodumb
+          CI: true
