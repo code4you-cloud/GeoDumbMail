@@ -4,68 +4,123 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Email Data</title>
-    <!-- Import Bootstrap CSS -->
+    <!-- Bootstrap CSS -->
     <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    
+    <style>
+        /* Container della tabella con scroll orizzontale */
+        .table-responsive {
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+        
+        /* Larghezza minima per garantire la visibilità di tutte le colonne su desktop */
+        .table {
+            min-width: 1000px;
+        }
+        
+        /* Riduci leggermente il padding delle celle per risparmiare spazio */
+        .table td, .table th {
+            padding: 0.4rem 0.5rem;
+            vertical-align: middle;
+        }
+        
+        /* Colonna Preview a dimensione fissa */
+        .table .preview-cell {
+            width: 80px;
+            height: 80px;
+            padding: 2px !important;
+        }
+        
+        /* Stili per la cella Typo compatta */
+        .table .typo-cell {
+            white-space: nowrap;
+            width: 1%;               /* si adatta al contenuto */
+            vertical-align: middle;
+        }
+        
+        /* Form Typo: selettore e bottone incolonnati */
+        .typo-form select {
+            font-size: 0.8rem;
+            padding: 0.15rem 0.3rem;
+            height: auto;
+            width: 100%;
+            min-width: 90px;
+        }
+        
+        .typo-form button {
+            font-size: 0.75rem;
+            padding: 0.15rem 0.4rem;
+            margin-top: 0.2rem !important;  /* sovrascrive mt-1 */
+            display: block;
+            width: 100%;
+        }
+        
+        /* Su schermi medi e piccoli (meno di 992px) la tabella può essere più stretta */
+        @media (max-width: 991.98px) {
+            .table {
+                min-width: 750px;
+            }
+        }
+    </style>
 </head>
 <body>
     <!-- Navbar -->
     <nav class="navbar navbar-expand-lg navbar-light bg-light">
         <a class="navbar-brand" href="#">Citylog reporting</a>
-        <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+        <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarNav" 
+                aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
             <span class="navbar-toggler-icon"></span>
         </button>
         <div class="collapse navbar-collapse" id="navbarNav">
             <ul class="navbar-nav ml-auto">
-                <li class="nav-item">
-                    <a class="nav-link" href="#">Home</a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link" href="#">Features</a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link" href="#">Contact</a>
-                </li>
+                <li class="nav-item"><a class="nav-link" href="#">Home</a></li>
+                <li class="nav-item"><a class="nav-link" href="#">Features</a></li>
+                <li class="nav-item"><a class="nav-link" href="#">Contact</a></li>
             </ul>
         </div>
     </nav>
 
-    <div class="container mt-4">
-        <!-- Blocca per mostrare i messaggi di Django -->
+    <div class="container-fluid mt-4 px-3">
+        <!-- Messaggi Django -->
         {% if messages %}
         <div class="alert alert-info">
             <ul class="list-unstyled">
                 {% for message in messages %}
-                <li class="alert {{ message.tags }}">{{message }}</li>
+                <li class="alert {{ message.tags }}">{{ message }}</li>
                 {% endfor %}
             </ul>
         </div>
         {% endif %}
 
-        <form method="get" action="{% url 'search_emails_list' %}" class="search-form">
-          <div class="form-group">
-            <label for="exampleInputEmail1">City | Address | Status | Typo </label>
-            <input type="text" class="form-control" name="q" aria-describedby="emailHelp">
-          </div>
-          <button type="submit" class="btn btn-primary">Cerca</button>
+        <!-- Form di ricerca -->
+        <form method="get" action="{% url 'search_emails_list' %}" class="search-form mb-4">
+            <div class="form-group">
+                <label for="searchInput">City | Address | Status | Typo</label>
+                <input type="text" class="form-control" name="q" id="searchInput" value="{{ request.GET.q }}">
+            </div>
+            <button type="submit" class="btn btn-primary">Cerca</button>
         </form>
 
         <h1 class="my-4">Segnalazioni email:</h1>
 
-        <div class="table-responsive table-sm">
+        <!-- Tabella responsive -->
+        <div class="table-responsive">
             <table class="table table-bordered table-hover">
                 <thead class="thead-light">
                     <tr>
                         <th>Id</th>
                         <th>Social</th>
-                        <th>Latitude</th>
-                        <th>Longitude</th>
+                        <th class="d-none d-lg-table-cell">Latitude</th>
+                        <th class="d-none d-lg-table-cell">Longitude</th>
                         <th>City</th>
                         <th>Address</th>
-                        <th>ImageID</th>
-                        <th>ImageTime</th>
+                        <th class="d-none d-lg-table-cell">ImageID</th>
+                        <th class="d-none d-lg-table-cell">ImageTime</th>
                         <th>Status</th>
-                        <th>Status_int</th>
+                        <th class="d-none d-lg-table-cell">Status_int</th>
                         <th>Preview</th>
                         <th>Typo</th>
                     </tr>
@@ -85,44 +140,50 @@
                                 📧 {{ email.social_type }}
                             {% endif %}
                         </td>
-                        <td>{% if email.status == '1' %}<p class="text-muted">{{ email.latitude }}</p>{% else %}{{ email.latitude }}{% endif %}</td>
-                        <td>{% if email.status == '1' %}<p class="text-muted">{{ email.longitude }}</p>{% else %}{{ email.longitude }}{% endif %}</td>
-                        <!--td>{{ email.longitude }}</td-->
+                        <td class="d-none d-lg-table-cell">
+                            {% if email.status == '1' %}
+                                <span class="text-muted">{{ email.latitude }}</span>
+                            {% else %}
+                                {{ email.latitude }}
+                            {% endif %}
+                        </td>
+                        <td class="d-none d-lg-table-cell">
+                            {% if email.status == '1' %}
+                                <span class="text-muted">{{ email.longitude }}</span>
+                            {% else %}
+                                {{ email.longitude }}
+                            {% endif %}
+                        </td>
                         <td>{{ email.city }}</td>
-                        <!--td><a href="{{ email.image_file.url }}">{{ email.address }}</a></td-->
                         <td><a href="{{ email.image_url }}">{{ email.address }}</a></td>
-                        <td>{{ email.image_id }}</td>
-                        <td>{{ email.image_time }}</td>
+                        <td class="d-none d-lg-table-cell">{{ email.image_id }}</td>
+                        <td class="d-none d-lg-table-cell">{{ email.image_time }}</td>
                         <td>{{ email.status }}</td>
-                        <td>{{ email.status_int }}</td>
-                        <!--td><a href="{{ email.image_url }}" target="_blank">{{ email.image_url }}</a></td-->
-                        <td style="width: 100px; height: 100px;">
+                        <td class="d-none d-lg-table-cell">{{ email.status_int }}</td>
+                        <td class="preview-cell">
                             {% if email.status == '0' %}
                             <a href="https://maps.citylog.cloud/sample_leaflet.html?lat={{ email.latitude }}&lon={{ email.longitude }}&zoom=15&address={{ email.address }}&image_url={{ email.image_url }}" target="_blank">
                                 <img src="{{ email.image_url }}" alt="Immagine" style="width: 100%; height: 100%; object-fit: cover;" />
                             </a>
                             {% else %}
-                                <!--img src="{{ email.image_file.url }}" alt="Immagine" style="width: 100%; height: 100%; object-fit: cover;" /-->
                                 <img src="{{ email.image_url }}" alt="Immagine" style="width: 100%; height: 100%; object-fit: cover;" />
                             {% endif %}
                         </td>
-                        <!--td>{{ email.typo }}</td-->
-                        <!-- Campo typo, con form per la modifica -->
-                        <td>
-                            <form method="POST" action="{% url 'update_typo' email.id %}">
+                        <!-- Typo compatto (select sopra, bottone sotto) -->
+                        <td class="typo-cell">
+                            <form method="POST" action="{% url 'update_typo' email.id %}" class="typo-form">
                                 {% csrf_token %}
-                                <select name="typo" class="form-control">
-                                    <option value="rifiuti" {% if email.typo == 'rifiuti' %}selected{% endif %}>Rifiuti</option>
-                                    <option value="tronchi" {% if email.typo == 'tronchi' %}selected{% endif %}>Tronchi</option>
-                                    <option value="censimento" {% if email.typo == 'censimento' %}selected{% endif %}>Censimento</option>
-                                    <option value="piantumazione" {% if email.typo == 'piantumazione' %}selected{% endif %}>Piantumazione</option>
-                                    <option value="strade" {% if email.typo == 'strade' %}selected{% endif %}>Strade</option>
-                                    <!--option value="buche" {% if email.typo == 'buche' %}selected{% endif %}>Buche</option-->
-                                    <option value="cantieri" {% if email.typo == 'cantieri' %}selected{% endif %}>Cantieri-Interventi</option>
+                                <select name="typo" class="form-control form-control-sm">
+                                    <option value="rifiuti" {% if email.typo == 'rifiuti' %}selected{% endif %}>Rif.</option>
+                                    <option value="tronchi" {% if email.typo == 'tronchi' %}selected{% endif %}>Tron.</option>
+                                    <option value="censimento" {% if email.typo == 'censimento' %}selected{% endif %}>Cens.</option>
+                                    <option value="piantumazione" {% if email.typo == 'piantumazione' %}selected{% endif %}>Piant.</option>
+                                    <option value="strade" {% if email.typo == 'strade' %}selected{% endif %}>Str.</option>
+                                    <option value="cantieri" {% if email.typo == 'cantieri' %}selected{% endif %}>Cant.</option>
                                     <option value="api" {% if email.typo == 'api' %}selected{% endif %}>API</option>
-                                    <option value="rimuovi" {% if email.typo == 'rimuovi' %}selected{% endif %}>Rimuovi</option>
+                                    <option value="rimuovi" {% if email.typo == 'rimuovi' %}selected{% endif %}>Rim.</option>
                                 </select>
-                                <button type="submit" class="btn btn-primary btn-sm mt-1">Aggiorna</button>
+                                <button type="submit" class="btn btn-primary btn-sm mt-1">Agg.</button>
                             </form>
                         </td>
                     </tr>
@@ -130,53 +191,44 @@
                 </tbody>
             </table>
         </div>
-		<!-- Controlli di paginazione -->
+        
+        <!-- Paginazione -->
         <nav aria-label="Page navigation" class="mt-3">
             <ul class="pagination justify-content-center">
                 {% if page_obj.has_previous %}
                     <li class="page-item">
-                        <a class="page-link" href="?page=1">Prima</a>
+                        <a class="page-link" href="?page=1{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}">Prima</a>
                     </li>
                     <li class="page-item">
-                        <a class="page-link" href="?page={{ page_obj.previous_page_number }}">Precedente</a>
+                        <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}">Precedente</a>
                     </li>
                 {% else %}
-                    <li class="page-item disabled">
-                        <a class="page-link" href="#">Prima</a>
-                    </li>
-                    <li class="page-item disabled">
-                        <a class="page-link" href="#">Precedente</a>
-                    </li>
+                    <li class="page-item disabled"><a class="page-link" href="#">Prima</a></li>
+                    <li class="page-item disabled"><a class="page-link" href="#">Precedente</a></li>
                 {% endif %}
 
-                <!-- Mostra il numero di pagina attuale -->
                 <li class="page-item active">
                     <a class="page-link" href="#">{{ page_obj.number }} <span class="sr-only">(current)</span></a>
                 </li>
 
                 {% if page_obj.has_next %}
                     <li class="page-item">
-                        <a class="page-link" href="?page={{ page_obj.next_page_number }}">Successiva</a>
+                        <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}">Successiva</a>
                     </li>
                     <li class="page-item">
-                        <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}">Ultima</a>
+                        <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}">Ultima</a>
                     </li>
                 {% else %}
-                    <li class="page-item disabled">
-                        <a class="page-link" href="#">Successiva</a>
-                    </li>
-                    <li class="page-item disabled">
-                        <a class="page-link" href="#">Ultima</a>
-                    </li>
+                    <li class="page-item disabled"><a class="page-link" href="#">Successiva</a></li>
+                    <li class="page-item disabled"><a class="page-link" href="#">Ultima</a></li>
                 {% endif %}
             </ul>
         </nav>
     </div>
 
-    <!-- Import Bootstrap JS and dependencies -->
+    <!-- Bootstrap JS e dipendenze -->
     <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.9.3/dist/umd/popper.min.js"></script>
     <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
 </body>
 </html>
-
