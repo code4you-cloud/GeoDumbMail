@@ -120,6 +120,7 @@
                         <th class="d-none d-lg-table-cell">ImageID</th>
                         <th class="d-none d-lg-table-cell">ImageTime</th>
                         <th>Status</th>
+                        <th>Quartiere</th>
                         <th class="d-none d-lg-table-cell">Status_int</th>
                         <th>Preview</th>
                         <th>Typo</th>
@@ -159,6 +160,13 @@
                         <td class="d-none d-lg-table-cell">{{ email.image_id }}</td>
                         <td class="d-none d-lg-table-cell">{{ email.image_time }}</td>
                         <td>{{ email.status }}</td>
+                        <!--td>{{ email.quartiere }}</td-->
+                        <td>
+                            <span class="badge {% if email.quartiere %}badge-secondary{% else %}badge-danger{% endif %}">
+                                {{ email.quartiere|default:"Non specificato" }}
+                            </span>
+                        </td>
+                        <!--td><span class="badge badge-info">{{ email.quartiere }}</span></td-->
                         <td class="d-none d-lg-table-cell">{{ email.status_int }}</td>
                         <td class="preview-cell">
                             {% if email.status == '0' %}
@@ -174,16 +182,16 @@
                             <form method="POST" action="{% url 'update_typo' email.id %}" class="typo-form">
                                 {% csrf_token %}
                                 <select name="typo" class="form-control form-control-sm">
-                                    <option value="rifiuti" {% if email.typo == 'rifiuti' %}selected{% endif %}>Rif.</option>
-                                    <option value="tronchi" {% if email.typo == 'tronchi' %}selected{% endif %}>Tron.</option>
-                                    <option value="censimento" {% if email.typo == 'censimento' %}selected{% endif %}>Cens.</option>
-                                    <option value="piantumazione" {% if email.typo == 'piantumazione' %}selected{% endif %}>Piant.</option>
-                                    <option value="strade" {% if email.typo == 'strade' %}selected{% endif %}>Str.</option>
-                                    <option value="cantieri" {% if email.typo == 'cantieri' %}selected{% endif %}>Cant.</option>
+                                    <option value="rifiuti" {% if email.typo == 'rifiuti' %}selected{% endif %}>Rifiiuti</option>
+                                    <option value="tronchi" {% if email.typo == 'tronchi' %}selected{% endif %}>Tronchi</option>
+                                    <option value="censimento" {% if email.typo == 'censimento' %}selected{% endif %}>Censimento</option>
+                                    <option value="piantumazione" {% if email.typo == 'piantumazione' %}selected{% endif %}>Piantumaione</option>
+                                    <option value="strade" {% if email.typo == 'strade' %}selected{% endif %}>Strade</option>
+                                    <option value="cantieri" {% if email.typo == 'cantieri' %}selected{% endif %}>Cantieri</option>
                                     <option value="api" {% if email.typo == 'api' %}selected{% endif %}>API</option>
-                                    <option value="rimuovi" {% if email.typo == 'rimuovi' %}selected{% endif %}>Rim.</option>
+                                    <option value="rimuovi" {% if email.typo == 'rimuovi' %}selected{% endif %}>Rimuovi</option>
                                 </select>
-                                <button type="submit" class="btn btn-primary btn-sm mt-1">Agg.</button>
+                                <button type="submit" class="btn btn-primary btn-sm mt-1">Aggiorna</button>
                             </form>
                         </td>
                     </tr>
