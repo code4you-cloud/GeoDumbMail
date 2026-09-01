@@ -62,14 +62,14 @@ class EmailData(models.Model):
 
     # Nuovo campo integer con le tue scelte
     class StatusInt(models.IntegerChoices):
-        NEW = 0, 'Nuovo'
+        SUBMITTED = 0, 'Nuovo'
         PROCESSING = 10, 'In elaborazione'
-        GEOCODED = 20, 'Geolocalizzato'
-        COMPLETED = 30, 'Completato'
-        DUPLICATE = 40, 'Duplicato'
-        ERROR = 50, 'Errore'
-        SKIPPED = 60, 'Saltato'
-        PENDING_REVIEW = 70, 'In attesa di revisione'
+        PUBLISHED = 20, 'Pubblicata'
+        REJECTED = 30, 'Rifiutata'
+        FLAGGED = 40, 'Segnalata per revisione'
+        #ERROR = 50, 'Errore'
+        #SKIPPED = 60, 'Saltato'
+        #PENDING_REVIEW = 70, 'In attesa di revisione'
 
     status_int = models.IntegerField(
         choices=StatusInt.choices,

@@ -97,7 +97,8 @@ WSGI_APPLICATION = "GeoDumbMail.wsgi.application"
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql_psycopg2', 	# Add 'postgresql_psycopg2', 'mysql', 'sqlite3' or 'oracle'.
-        'NAME': 'geodumbmail',                                  # Or path to database file if using sqlite3.
+        'NAME': 'geodumbmail_alembic',                          # Or path to database file if using sqlite3.
+        #'NAME': 'geodumbmail',                                 # Or path to database file if using sqlite3.
         'USER': 'postgres',                                     # Not used with sqlite3.
         'PASSWORD':'postgres',                                  # Not used with sqlite3.
         'HOST': '192.168.1.65',                                 # Set to empty string for localhost. Not used with sqlite3.
