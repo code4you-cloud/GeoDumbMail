@@ -277,3 +277,22 @@ FASTAPI_BASE_URL = "https://api.citylog.cloud/"
 #SERVICE_FACEBOOK_ID = "marco@example.com"
 #SERVICE_EMAIL = "marco@example.com"
 
+### ANTROPIC
+from dotenv import load_dotenv
+
+#load_dotenv()  # legge .env e popola os.environ
+load_dotenv(BASE_DIR / '.env')
+
+ANTHROPIC_API_KEY = os.environ.get('ANTHROPIC_API_KEY')
+
+if not ANTHROPIC_API_KEY:
+    raise RuntimeError(
+        "ANTHROPIC_API_KEY non trovata: assicurati di avere un file .env "
+        "nella root del progetto con la chiave impostata."
+    )
+
+# scelta del motore LLM di Claude
+DETECTION_MODEL = os.environ.get('DETECTION_MODEL', 'claude-sonnet-4-6')
+#DETECTION_MODEL = os.environ.get('DETECTION_MODEL', 'claude-haiku-4-5-20251001')
+# Abilita l'attivazione dell'API ANTROPIC se ENABLE_ANTROPIC = True
+ENABLE_ANTROPIC = True

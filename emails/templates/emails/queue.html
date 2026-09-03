@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Coda di revisione</h2>
+
+{% if reports %}
+<table border="1" cellpadding="8">
+  <tr>
+    <th>ID</th>
+    <th>Anteprima</th>
+    <th>Creato il</th>
+    <th>Box rilevati</th>
+    <th>Status</th>
+    <th></th>
+  </tr>
+  {% for report in reports %}
+  <tr>
+    <td>{{ report.id }}</td>
+    <td><img src="{{ report.image.url }}" style="max-height: 80px;"></td>
+    <td>{{ report.created_at }}</td>
+    <td>{{ report.boxes.count }}</td>
+    <td><a href="{% url 'confirm_redaction' report.id %}">Revisiona</a></td>
+    <td>{{ report.status }}</td>
+  </tr>
+  {% endfor %}
+</table>
+{% else %}
+<p>Nessuna segnalazione in attesa di revisione.</p>
+{% endif %}
+{% endblock %}

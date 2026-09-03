@@ -16,11 +16,12 @@ import uuid
 import traceback
 from psycopg2 import sql
 
-from django.shortcuts import render
+#from django.shortcuts import render
+from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 
 # Create your views here.
-from django.http import HttpResponse
+from django.http import HttpResponse, HttpResponseBadRequest
 
 # new from AI
 from django.core.files.base import ContentFile
@@ -31,10 +32,13 @@ from django.db.models import Count, Q
 from django.db import transaction
 from django.conf import settings
 
-from django.shortcuts import get_object_or_404, redirect
+#from django.shortcuts import get_object_or_404, redirect
 from django.http import HttpResponseRedirect
+from django.views.generic import TemplateView
+from django.contrib.auth.decorators import login_required
 
-from .models import EmailData, Users  # Importa il modello se hai definito uno in models.py
+from emails.services.redaction import apply_redaction
+from .models import EmailData, Users, RedactionBox  # Importa il modello se hai definito uno in models.py
 
 # Configura il logger
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -430,6 +434,176 @@ def process_emails(request):
     logger.info(f"User: {request.user if request.user.is_authenticated else 'Anonymous'}")
     logger.info(f"{'='*60}")
 
+    # --- Step 0: Recupera email con retry per errori di connessione ---
+    mail = None
+    email_ids = []
+    unread_emails = []
+    max_retries = 2
+
+    for attempt in range(max_retries):
+        try:
+            logger.info(f"Tentativo fetch email {attempt + 1}/{max_retries}")
+            mail, email_ids, unread_emails = fetch_unread_emails()
+            logger.info(f"Fetch completato: {len(unread_emails)} email trovate")
+            break
+        except Exception as e:
+            error_str = str(e)
+            if ("EOF" in error_str or "socket error" in error_str) and attempt < max_retries - 1:
+                logger.warning(f"Errore connessione, riprovo tra 2 secondi...")
+                time.sleep(2)
+                continue
+            else:
+                logger.error(f"Errore durante il fetch delle email: {str(e)}", exc_info=True)
+                messages.error(request, "Impossibile recuperare le email. Verifica le credenziali o riprova.")
+                return redirect('update_in_progress')
+
+    # --- Step 1: Autenticazione servizio Django → FastAPI (una sola volta) ---
+    try:
+        auth_response = requests.post(
+            f"{settings.FASTAPI_BASE_URL}/auth/service-login"
+        )
+        auth_response.raise_for_status()
+        token = auth_response.json().get("access_token")
+        headers = {"Authorization": f"Bearer {token}"}
+        logger.info("Autenticazione FastAPI avvenuta con successo")
+    except Exception as e:
+        logger.error(f"Autenticazione FastAPI fallita: {e}")
+        messages.error(request, "Autenticazione FastAPI fallita.")
+        # Se fallisce, mostra email senza social
+        headers = None
+        return redirect('update_in_progress')
+
+    # ✅ MAPPA TIPOLOGIA → ENDPOINT
+    ENDPOINT_MAP = {
+        'waste': '/rifiuti/',
+        'notrunktree': '/tronchi/',
+        'tree': '/censimento/',
+        'pianta': '/piantumazione/',
+        'cantieri': '/cantieri/',
+        'hole': '/strade/',
+        'api': '/api/',
+        'rimuovi': '/rimuovi/',
+    }
+
+    if not unread_emails:
+        messages.warning(request, "No new unread emails found. App is idle, waiting for new emails...")
+        emails = EmailData.objects.all().order_by('-image_time', 'id').values()
+        enriched_emails = enrich_emails_with_social(emails, headers)
+        paginator = Paginator(enriched_emails, 10)
+        page_number = request.GET.get('page')
+        page_obj = paginator.get_page(page_number)
+        return render(request, 'emails/email_list.html', {'emails': enriched_emails, 'page_obj': page_obj})
+
+    # --- Step 2: Estrai dati e invia direttamente a FastAPI ---
+    sent_count = 0
+    for idx, email_message in enumerate(unread_emails):
+        logger.info(f"Parsing email {idx+1}/{len(unread_emails)}...")
+
+        try:
+            extracted_data = parse_email_content(email_message)
+            logger.info(f"Extracted_data: {extracted_data}")
+        except Exception as e:
+            logger.error(f"Errore parsing email {idx}: {e}")
+            continue
+
+        if not extracted_data:
+            logger.error(f"Nessun dato estratto dall'email {idx}")
+            continue
+
+        # ✅ OTTIENI LA TIPOLOGIA
+        tipologia = extracted_data.get('typo', 'waste') or 'waste'
+
+        # ✅ PAYLOAD PER FASTAPI
+        payload = {
+            "latitude": extracted_data.get('latitude'),
+            "longitude": extracted_data.get('longitude'),
+            "city": extracted_data.get('city'),
+            "address": extracted_data.get('address'),
+            "image_id": extracted_data.get('image_id'),
+            "image_url": extracted_data.get('image_url'),
+            "image_time": extracted_data.get('image_time').isoformat() if extracted_data.get('image_time') else None,
+            "typo": tipologia,
+            "user_id": extracted_data.get('user_id')
+        }
+
+        logger.info(f"PAYLOAD: {payload}")
+
+        # ✅ INVIA A FASTAPI
+        try:
+            full_url = f"{settings.FASTAPI_BASE_URL}{tipologia}/"
+            logger.info(f"[{execution_id}] REQUEST URL: {full_url}")
+            logger.info(f"[{execution_id}] PAYLOAD: {json.dumps(payload, indent=2)}")
+
+            start_time = time.time()
+            response = requests.post(
+                full_url,
+                json=payload,
+                headers=headers
+            )
+            elapsed = time.time() - start_time
+
+            logger.info(f"[{execution_id}] Tempo risposta: {elapsed:.3f}s")
+            logger.info(f"[{execution_id}] STATUS: {response.status_code}")
+            logger.info(f"[{execution_id}] RESPONSE: {response.text[:500]}")
+
+            if response.status_code == 201:
+                logger.info(f"✅ Segnalazione creata su FastAPI ({tipologia})")
+                sent_count += 1
+            # ✅ SE 401, RIGENERA TOKEN E RI PROVA
+            elif response.status_code == 401:
+                logger.warning("Token scaduto, rigenero...")
+                auth_response = requests.post(
+                    f"{settings.FASTAPI_BASE_URL}/auth/service-login"
+                )
+                if auth_response.status_code == 200:
+                    token = auth_response.json().get("access_token")
+                    headers = {"Authorization": f"Bearer {token}"}
+                    response = requests.post(
+                        full_url,
+                        json=payload,
+                        headers=headers
+                    )
+                    if response.status_code == 201:
+                        sent_count += 1
+            else:
+                logger.error(f"Errore: {response.status_code} - {response.text}")
+        except Exception as e:
+            logger.error(f"Errore invio: {e}")
+
+    if mail:
+        try:
+            mail.logout()
+        except:
+            pass
+
+    messages.success(request, f"Elaborazione completata. {sent_count} segnalazioni inviate a FastAPI.")
+
+    emails = EmailData.objects.all().order_by('-image_time').values()
+    enriched_emails = enrich_emails_with_social(emails, headers)
+
+    paginator = Paginator(enriched_emails, 10)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+
+    return render(request, 'emails/email_list.html', {'emails': enriched_emails, 'page_obj': page_obj})
+
+def process_emails_(request):
+    """
+    Processa le email non lette:
+    1. Recupera email dal server IMAP
+    2. Estrae i dati
+    3. Invia direttamente a FastAPI tramite service-login
+    """
+
+    # ID univoco per questa esecuzione
+    execution_id = str(uuid.uuid4())[:8]
+    logger.info(f"{'='*60}")
+    logger.info(f"EXECUTION ID: {execution_id} - INIZIO process_emails")
+    logger.info(f"Chiamata da: {request.META.get('HTTP_REFERER', 'N/A')}")
+    logger.info(f"URL: {request.META.get('REQUEST_URI', 'N/A')}")
+    logger.info(f"User: {request.user if request.user.is_authenticated else 'Anonymous'}")
+    logger.info(f"{'='*60}")
+
     # --- Step 0: inizializza variabili e logging ---
     try:
         mail, email_ids, unread_emails = fetch_unread_emails()
@@ -707,8 +881,13 @@ def process_emails_EmailData(request):
                 ##image_file=extracted_data['user_id'],
             )
             new_email.save()
-            new_records.append(new_email)
             logger.info(f"Creato nuovo record ID {new_email.id}")
+            if settings.ENABLE_ANTROPIC:
+                # --- HOOK: analisi immagine + scrittura status ---
+                from emails.services.detection import process_report_detection
+                process_report_detection(new_email)
+
+            new_records.append(new_email)
 
     mail.logout()
 
@@ -1010,3 +1189,69 @@ def enrich_emails_with_social_(emails, headers):
             email_dict['display_name'] = 'N/A'
         enriched.append(email_dict)
     return enriched
+
+## Detection face or plate
+def public_report_detail(request, pk):
+     report = get_object_or_404(EmailData, pk=pk, status__in=['reviewed', 'published'])
+     return render(request, 'public_detail.html', {'image_url': report.redacted_image.url})
+
+def review_queue(request):
+    reports = EmailData.objects.filter(status=Report.Status.PENDING_REVIEW).order_by('created_at')
+    return render(request, 'queue.html', {'reports': reports})
+
+
+@login_required
+def review_queue(request):
+    reports = EmailData.objects.filter(
+        status=EmailData.Status.PENDING_REVIEW
+    ).order_by('created_at')
+    return render(request, 'emails/queue.html', {'reports': reports})
+
+@login_required
+def confirm_redaction(request, pk):
+    report = get_object_or_404(
+        EmailData, pk=pk, status=EmailData.Status.PENDING_REVIEW
+    )
+
+    if request.method == 'POST':
+        action = request.POST.get('action')
+
+        if action == 'reject':
+            report.status = EmailData.Status.REJECTED
+            report.save(update_fields=['status'])
+            return redirect('review_queue')
+
+        if action == 'publish':
+            boxes_json = request.POST.get('boxes_data', '[]')
+            try:
+                boxes_data = json.loads(boxes_json)
+            except json.JSONDecodeError:
+                return HttpResponseBadRequest("Dati box non validi")
+
+            # rimpiazza tutti i box esistenti con quelli confermati/modificati dal revisore
+            report.boxes.all().delete()
+            for b in boxes_data:
+                RedactionBox.objects.create(
+                    report=report,
+                    box_type=b['type'],
+                    x=b['x'], y=b['y'], w=b['w'], h=b['h'],
+                    confidence=b.get('confidence', 1.0),
+                    confirmed=True,
+                    is_manual=b.get('is_manual', False),
+                )
+
+            apply_redaction(report)  # produce redacted_image
+            report.status = EmailData.Status.PUBLISHED
+            report.save(update_fields=['status'])
+            return redirect('review_queue')
+
+        return HttpResponseBadRequest("Azione non riconosciuta")
+
+    # GET: mostra l'editor
+    boxes = list(report.boxes.values('box_type', 'x', 'y', 'w', 'h', 'confidence'))
+    return render(request, 'emails/review.html', {
+        'report': report,
+        'boxes_json': json.dumps(boxes),
+    })
+
+

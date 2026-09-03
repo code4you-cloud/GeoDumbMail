@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Revisione report #{{ report.id }}</h2>
+
+<div style="position: relative; display: inline-block;">
+  <img id="photo" src="{{ report.image.url }}" style="max-width: 800px; display: block;">
+  <canvas id="overlay" style="position: absolute; top: 0; left: 0; cursor: crosshair;"></canvas>
+</div>
+
+<form method="post" id="review-form">
+  {% csrf_token %}
+  <input type="hidden" name="boxes_data" id="boxes_data">
+  <br>
+  <button type="submit" name="action" value="publish">Conferma e pubblica</button>
+  <button type="submit" name="action" value="reject">Rifiuta segnalazione</button>
+</form>
+
+<script>
+const img = document.getElementById('photo');
+const canvas = document.getElementById('overlay');
+const ctx = canvas.getContext('2d');
+let boxes = JSON.parse('{{ boxes_json|escapejs }}');
+let dragging = null, dragOffset = {x: 0, y: 0};
+
+function sync() {
+  canvas.width = img.clientWidth;
+  canvas.height = img.clientHeight;
+  draw();
+}
+img.onload = sync;
+if (img.complete) sync();
+
+function draw() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  boxes.forEach((b, i) => {
+    const x = b.x * canvas.width, y = b.y * canvas.height;
+    const w = b.w * canvas.width, h = b.h * canvas.height;
+    ctx.strokeStyle = b.box_type === 'face' ? 'red' : 'blue';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(x, y, w, h);
+    ctx.fillStyle = ctx.strokeStyle;
+    ctx.fillText(`${b.box_type} #${i}`, x, y - 4);
+  });
+}
+
+canvas.addEventListener('mousedown', (e) => {
+  const mx = e.offsetX / canvas.width, my = e.offsetY / canvas.height;
+  dragging = boxes.findIndex(b => mx >= b.x && mx <= b.x + b.w && my >= b.y && my <= b.y + b.h);
+  if (dragging >= 0) {
+    dragOffset = { x: mx - boxes[dragging].x, y: my - boxes[dragging].y };
+  }
+});
+canvas.addEventListener('mousemove', (e) => {
+  if (dragging === null || dragging < 0) return;
+  const mx = e.offsetX / canvas.width, my = e.offsetY / canvas.height;
+  boxes[dragging].x = mx - dragOffset.x;
+  boxes[dragging].y = my - dragOffset.y;
+  draw();
+});
+canvas.addEventListener('mouseup', () => { dragging = null; });
+
+// elimina box con doppio click
+canvas.addEventListener('dblclick', (e) => {
+  const mx = e.offsetX / canvas.width, my = e.offsetY / canvas.height;
+  const idx = boxes.findIndex(b => mx >= b.x && mx <= b.x + b.w && my >= b.y && my <= b.y + b.h);
+  if (idx >= 0) { boxes.splice(idx, 1); draw(); }
+});
+
+document.getElementById('review-form').addEventListener('submit', () => {
+  document.getElementById('boxes_data').value = JSON.stringify(boxes);
+});
+</script>
+{% endblock %}

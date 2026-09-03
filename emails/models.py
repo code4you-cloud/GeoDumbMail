@@ -87,13 +87,29 @@ class EmailData(models.Model):
     #user_id = models.CharField(max_length=255, blank=True, null=True)
     #user_id = models.CharField(max_length=64, null=True, blank=True, db_index=True)
 
+    # Correct orientation
     def save(self, *args, **kwargs):
-        is_new = self._state.adding  # solo al primo salvataggio
+        # Salva prima il file normalmente
         super().save(*args, **kwargs)
 
-        if is_new and self.image_file and not self.image_url:
-            self.image_url = self.image_file.url
-            super().save(update_fields=["image_url"])
+        if self.immagine:
+            # Apri l'immagine salvata
+            img_path = self.immagine.path
+            image = Image.open(img_path)
+
+            # Ruota l'immagine in base ai metadati EXIF
+            rotated_image = ImageOps.exif_transpose(image)
+
+            # Sovrascrivi il file solo se è stata effettuata una modifica/rotazione
+            rotated_image.save(img_path)
+    # old orientation
+    #def save(self, *args, **kwargs):
+    #    is_new = self._state.adding  # solo al primo salvataggio
+    #    super().save(*args, **kwargs)
+
+    #    if is_new and self.image_file and not self.image_url:
+    #        self.image_url = self.image_file.url
+    #        super().save(update_fields=["image_url"])
 
     def image_preview(self):
         if self.image_file:
@@ -114,4 +130,19 @@ class EmailData(models.Model):
 
     def __str__(self):
         return f"Email from {self.city or 'unknown location'}"
+
+class RedactionBox(models.Model):
+    """
+    Investigation . support table for face recogntion and plate
+    """
+    report = models.ForeignKey(EmailData, related_name='boxes', on_delete=models.CASCADE)
+    TYPE_CHOICES = [('face', 'Volto'), ('plate', 'Targa')]
+    box_type = models.CharField(max_length=10, choices=TYPE_CHOICES)
+    x = models.FloatField()  # normalizzato 0-1
+    y = models.FloatField()
+    w = models.FloatField()
+    h = models.FloatField()
+    confidence = models.FloatField(default=1.0)
+    confirmed = models.BooleanField(default=False)  # confermato da revisore umano
+    is_manual = models.BooleanField(default=False)  # aggiunto a mano, non da AI
 
