@@ -273,7 +273,7 @@ REMOTE_STORAGE_MEDIA_URL  = _active['MEDIA_URL']
 REMOTE_STORAGE_DELETE_URL = _active['DELETE_URL']
 
 # Direttive per accedere agli endpoint FastAPI
-FASTAPI_BASE_URL = "https://api.citylog.cloud/"
+FASTAPI_BASE_URL = "https://api2.citylog.cloud/"
 #SERVICE_FACEBOOK_ID = "marco@example.com"
 #SERVICE_EMAIL = "marco@example.com"
 
@@ -296,3 +296,7 @@ DETECTION_MODEL = os.environ.get('DETECTION_MODEL', 'claude-sonnet-4-6')
 #DETECTION_MODEL = os.environ.get('DETECTION_MODEL', 'claude-haiku-4-5-20251001')
 # Abilita l'attivazione dell'API ANTROPIC se ENABLE_ANTROPIC = True
 ENABLE_ANTROPIC = True
+
+AUTHENTICATION_BACKENDS = [
+    'django.contrib.auth.backends.ModelBackend',
+]

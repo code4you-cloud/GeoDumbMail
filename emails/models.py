@@ -84,24 +84,49 @@ class EmailData(models.Model):
         default='rifiuti',  # Opzione predefinita
     )
     user_id = models.IntegerField(null=True, blank=True, db_index=True)
+    redacted_image = models.CharField(max_length=255, blank=True, null=True)
     #user_id = models.CharField(max_length=255, blank=True, null=True)
     #user_id = models.CharField(max_length=64, null=True, blank=True, db_index=True)
 
     # Correct orientation
     def save(self, *args, **kwargs):
-        # Salva prima il file normalmente
+        # 1. Intercetta il file durante l'upload/creazione (quando c'è un file e non è ancora salvato su disco)
+        if self.image_file and hasattr(self.image_file, "file"):
+            try:
+                # Apri l'immagine dallo stream in memoria
+                img = Image.open(self.image_file)
+
+                # Ruota i pixel fisici in base all'orientamento EXIF di Android
+                rotated_img = ImageOps.exif_transpose(img)
+
+                # Rileva il formato dell'immagine (JPEG, PNG, etc.)
+                img_format = img.format if img.format else "JPEG"
+
+                # Prepara un buffer in memoria
+                buffer = BytesIO()
+
+                # Salva l'immagine ruotata nel buffer (elimina i vecchi tag EXIF di orientamento)
+                if img_format.upper() in ["JPEG", "JPG"]:
+                    rotated_img.save(
+                        buffer, format=img_format, quality=90, optimize=True
+                    )
+                else:
+                    rotated_img.save(buffer, format=img_format)
+
+                buffer.seek(0)
+
+                # Sostituisci il file del campo con la versione ruotata
+                self.image_file = ContentFile(
+                    buffer.read(), name=self.image_file.name
+                )
+
+            except Exception as e:
+                # In caso di errore (es. file non immagine), prosegue normalmente
+                print(f"Errore nella rotazione dell'immagine: {e}")
+
+        # 2. Chiama super().save() per salvare effettivamente il modello e il nuovo file ruotato su disco
         super().save(*args, **kwargs)
 
-        if self.immagine:
-            # Apri l'immagine salvata
-            img_path = self.immagine.path
-            image = Image.open(img_path)
-
-            # Ruota l'immagine in base ai metadati EXIF
-            rotated_image = ImageOps.exif_transpose(image)
-
-            # Sovrascrivi il file solo se è stata effettuata una modifica/rotazione
-            rotated_image.save(img_path)
     # old orientation
     #def save(self, *args, **kwargs):
     #    is_new = self._state.adding  # solo al primo salvataggio

@@ -4,7 +4,7 @@
 set -x
 
 # Configuration variables
-PROJECT_DIR="/home/remote/GeoDumbMail"
+PROJECT_DIR="/usr/share/GeoDumbMail"
 LOGFILE="$PROJECT_DIR/django_server.log"
 MAIL_RECIPIENT="system@code4you.cloud"
 SERVER_CMD="poetry run python manage.py runserver 0.0.0.0:8000"

@@ -327,85 +327,6 @@ def save_to_sqlite(latitude, longitude, city, address, image_id, image_time, ima
     conn.commit()
     conn.close()
 
-# Funzione per salvare i dati in SQLite
-def save_to_sqlite__(latitude, longitude, city, address, image_id, image_time, image_url, db_path='emails.db'):
-    """
-    Salva i dati in SQLite.
-    - db_path: percorso del database (default 'emails.db'; usa ':memory:' per test in RAM)
-    """
-    conn = sqlite3.connect(db_path)
-    c = conn.cursor()
-
-    c.execute('''
-        CREATE TABLE IF NOT EXISTS email_data (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            latitude REAL,
-            longitude REAL,
-            city TEXT,
-            address TEXT,
-            image_id TEXT,
-            image_time TEXT,
-            image_url TEXT
-        )
-    ''')
-
-    c.execute("SELECT * FROM email_data WHERE image_id = ?", (image_id,))
-    row = c.fetchone()
-    if row:
-        print(f"Duplicate ImageID detected: {image_id}")
-    else:
-        # Usa INSERT OR REPLACE: se image_id esiste, aggiorna tutte le colonne
-        c.execute('''
-            INSERT OR REPLACE INTO email_data
-            (id, latitude, longitude, city, address, image_id, image_time, image_url)
-            VALUES (
-                COALESCE((SELECT id FROM email_data WHERE image_id = ?), NULL),
-                ?, ?, ?, ?, ?, ?, ?
-            )
-        ''', (image_id, latitude, longitude, city, address, image_id, image_time, image_url))
-
-        #c.execute('''
-        #    INSERT INTO email_data (latitude, longitude, city, address, image_id, image_time, image_url)
-        #    VALUES (?, ?, ?, ?, ?, ?, ?)
-        #''', (latitude, longitude, city, address, image_id, image_time, image_url))
-        conn.commit()
-    conn.close()
-
-# Funzione per salvare i dati in SQLite
-def save_to_sqlite_(latitude, longitude, city, address, image_id, image_time, image_url):
-    conn = sqlite3.connect('emails.db')
-    c = conn.cursor()
-
-    # Creazione della tabella se non esiste
-    c.execute('''
-        CREATE TABLE IF NOT EXISTS email_data (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            latitude REAL,
-            longitude REAL,
-            city TEXT,
-            address TEXT,
-            image_id TEXT,
-            image_time TEXT,
-            image_url TEXT
-        )
-    ''')
-
-    # Verifica valore ImageID
-    c.execute("SELECT * FROM email_data WHERE image_id=?", (image_id,))
-    row = c.fetchone()
-    print(f'ROW: {row}')
-
-    if row:
-        print(f"Duplicate ImageID detected: {'image_id'}")
-    else:
-        c.execute('''
-            INSERT INTO email_data (latitude, longitude, city, address, image_id, image_time, image_url)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-        ''', (latitude, longitude, city, address, image_id, image_time, image_url))
-        conn.commit()
-
-    conn.close()
-
 # Funzione per marcare le email come non lette se non sono stati estratti dati
 def mark_as_unread(mail, email_id):
     if email_id:
@@ -521,6 +442,7 @@ def process_emails(request):
             "address": extracted_data.get('address'),
             "image_id": extracted_data.get('image_id'),
             "image_url": extracted_data.get('image_url'),
+            "image_file": extracted_data.get('image_file'),   # <-- nuovo campo
             "image_time": extracted_data.get('image_time').isoformat() if extracted_data.get('image_time') else None,
             "typo": tipologia,
             "user_id": extracted_data.get('user_id')
@@ -586,220 +508,6 @@ def process_emails(request):
     page_obj = paginator.get_page(page_number)
 
     return render(request, 'emails/email_list.html', {'emails': enriched_emails, 'page_obj': page_obj})
-
-def process_emails_(request):
-    """
-    Processa le email non lette:
-    1. Recupera email dal server IMAP
-    2. Estrae i dati
-    3. Invia direttamente a FastAPI tramite service-login
-    """
-
-    # ID univoco per questa esecuzione
-    execution_id = str(uuid.uuid4())[:8]
-    logger.info(f"{'='*60}")
-    logger.info(f"EXECUTION ID: {execution_id} - INIZIO process_emails")
-    logger.info(f"Chiamata da: {request.META.get('HTTP_REFERER', 'N/A')}")
-    logger.info(f"URL: {request.META.get('REQUEST_URI', 'N/A')}")
-    logger.info(f"User: {request.user if request.user.is_authenticated else 'Anonymous'}")
-    logger.info(f"{'='*60}")
-
-    # --- Step 0: inizializza variabili e logging ---
-    try:
-        mail, email_ids, unread_emails = fetch_unread_emails()
-    except Exception as e:
-        logger.error(f"Errore durante il fetch delle email: {str(e)}", exc_info=True)
-        return redirect('update_in_progress')
-
-#    if not unread_emails:
-#        messages.warning(request, "No new unread emails found. App is idle, waiting for new emails...")
-#        emails = EmailData.objects.all().order_by('-image_time', 'id').values()
-#        enriched_emails = enrich_emails_with_social(emails, headers)
-#        paginator = Paginator(emails, 10)
-#        page_number = request.GET.get('page')
-#        page_obj = paginator.get_page(page_number)
-#        return render(request, 'emails/email_list.html', {'emails': emails, 'page_obj': page_obj})
-#
-    # --- Step 1: Autenticazione servizio Django → FastAPI (una sola volta) ---
-    try:
-        auth_response = requests.post(
-            f"{settings.FASTAPI_BASE_URL}/auth/service-login"
-        )
-        auth_response.raise_for_status()
-        token = auth_response.json().get("access_token")
-        headers = {"Authorization": f"Bearer {token}"}
-        logger.info("Autenticazione FastAPI avvenuta con successo")
-    except Exception as e:
-        logger.error(f"Autenticazione FastAPI fallita: {e}")
-        messages.error(request, "Autenticazione FastAPI fallita.")
-        # Se fallisce, mostra email senza social
-        headers = None
-        return redirect('update_in_progress')
-
-    # ✅ MAPPA TIPOLOGIA → ENDPOINT
-    ENDPOINT_MAP = {
-        'waste': '/rifiuti/',
-        'notrunktree': '/tronchi/',
-        'tree': '/censimento/',
-        'pianta': '/piantumazione/',
-        'cantieri': '/cantieri/',
-        'hole': '/strade/',
-        'api': '/api/',
-        'rimuovi': '/rimuovi/',
-    }
-
-    if not unread_emails:
-        messages.warning(request, "No new unread emails found. App is idle, waiting for new emails...")
-        emails = EmailData.objects.all().order_by('-image_time', 'id').values()
-
-        # ✅ headers esiste sempre (anche se None)
-        enriched_emails = enrich_emails_with_social(emails, headers)
-        paginator = Paginator(emails, 10)
-        page_number = request.GET.get('page')
-        page_obj = paginator.get_page(page_number)
-        return render(request, 'emails/email_list.html', {'emails': enriched_emails, 'page_obj': page_obj})
-        #return render(request, 'emails/email_list.html', {'emails': emails, 'page_obj': page_obj})
-
-
-    # --- Step 2: Estrai dati e invia direttamente a FastAPI ---
-    sent_count = 0
-    for idx, email_message in enumerate(unread_emails):
-        logger.error(f"Parsing email {idx+1}/{len(unread_emails)}...")
-
-        try:
-            extracted_data = parse_email_content(email_message)
-            logger.warning(f"Extracted_data {extracted_data}...")
-        except Exception as e:
-            logger.error(f"Errore parsing email {idx}: {e}")
-            continue
-
-        if not extracted_data:
-            logger.error(f"Nessun dato estratto dall'email {idx}")
-            continue
-
-        # ✅ OTTIENI LA TIPOLOGIA
-        tipologia = extracted_data.get('typo', 'waste') or 'waste'
-        #endpoint = ENDPOINT_MAP.get(tipologia, '/rifiuti/')
-
-        # ✅ PAYLOAD PER FASTAPI
-        payload = {
-            "latitude": extracted_data.get('latitude'),
-            "longitude": extracted_data.get('longitude'),
-            "city": extracted_data.get('city'),
-            "address": extracted_data.get('address'),
-            "image_id": extracted_data.get('image_id'),
-            "image_url": extracted_data.get('image_url'),
-            "image_time": extracted_data.get('image_time').isoformat() if extracted_data.get('image_time') else None,
-            "typo": tipologia,
-            "user_id": extracted_data.get('user_id')
-        }
-
-        logger.error(f"PAYLOAD PRIMA DELL'INVIO: {payload}")  # ← Log di emergenza
-
-        # ✅ INVIA A FASTAPI
-        try:
-            # 📝 LOG DELL'URL COMPLETO
-            full_url = f"{settings.FASTAPI_BASE_URL}{tipologia}/"
-            #full_url = f"{settings.FASTAPI_BASE_URL}{endpoint}"
-
-            # LOG CON EXECUTION_ID
-            logger.info(f"[{execution_id}] REQUEST URL: {full_url}")
-            logger.info(f"[{execution_id}] PAYLOAD: {json.dumps(payload, indent=2)}")
-
-            # Timestamp prima della chiamata
-            #import time
-            start_time = time.time()
-
-            response = requests.post(
-                f"{settings.FASTAPI_BASE_URL}{tipologia}/",
-                #f"{settings.FASTAPI_BASE_URL}{endpoint}",
-                json=payload,
-                headers=headers
-            )
-
-            elapsed = time.time() - start_time
-
-            # LOG CON EXECUTION_ID
-            logger.info(f"[{execution_id}] Tempo risposta: {elapsed:.3f}s")
-            logger.info(f"[{execution_id}] STATUS: {response.status_code}")
-            logger.info(f"[{execution_id}] RESPONSE: {response.text[:500]}")
-
-            logger.debug(f"REQUEST URL: {full_url}")
-            logger.debug(f"PAYLOAD: {json.dumps(payload, indent=2)}")
-            logger.debug(f"HEADERS: {headers}")
-
-            #response = requests.post(
-            #    f"{settings.FASTAPI_BASE_URL}{endpoint}",
-            #    json=payload,
-            #    headers=headers
-            #)
-
-            # Log della risposta
-            logger.debug(f"STATUS: {response.status_code}")
-            logger.debug(f"RESPONSE: {response.text[:500]}")  # Primi 500 caratteri
-
-            if response.status_code == 201:
-                logger.info(f"✅ Segnalazione creata su FastAPI ({tipologia})")
-                sent_count += 1
-            # ✅ SE 401, RIGENERA TOKEN E RI PROVA
-            if response.status_code == 401:
-                logger.warning("Token scaduto, rigenero...")
-                token = get_fastapi_token()
-                if token:
-                    headers = {"Authorization": f"Bearer {token}"}
-                    response = requests.post(
-                        f"{settings.FASTAPI_BASE_URL}{endpoint}",
-                        json=payload,
-                        headers=headers
-            	)
-            else:
-                logger.error(f"Errore: {response.status_code} - {response.text}")
-        except Exception as e:
-            logger.error(f"Errore invio: {e}")
-
-    mail.logout()
-
-    messages.success(request, f"Elaborazione completata. {sent_count} segnalazioni inviate a FastAPI.")
-
-    emails = EmailData.objects.all().order_by('-image_time').values()
-
-    # ✅ Arricchisci con i dati social - con funzione dedicata
-    enriched_emails = enrich_emails_with_social(emails, headers)
-
-    # ✅ AGGIUNGI QUI: Arricchisci con i dati social
-#    enriched_emails = []
-#    for email in emails:
-#        email_dict = dict(email)  # Converte ValuesQuerySet in dict
-#        try:
-#            response = requests.get(
-#                f"{settings.FASTAPI_BASE_URL}/users/me/rate-social",
-#                params={'user_id': email_dict.get('user_id')},
-#                headers=headers
-#            )
-#            data = response.json() if response.status_code == 200 else {}
-#            email_dict['social_type'] = data.get('social_type', 'Email')
-#            email_dict['display_name'] = data.get('display_name', 'N/A')
-#        except:
-#            email_dict['social_type'] = 'Email'
-#            email_dict['display_name'] = 'N/A'
-#            print(f"USER ID: {user.id}, USERNAME: '{user.username}'")
-#            print(f"Username inizia con 'google_'? {user.username.startswith('google_')}")
-#            print(f"Username inizia con 'fb_'? {user.username.startswith('fb_')}")
-#
-#            email_dict['social_type'] = user.social_type
-#            email_dict['display_name'] = user.display_name
-#
-#            # 🔍 DEBUG: Vedi cosa restituisce
-#            print(f"social_type calcolato: {email_dict['social_type']}")
-#
-#        enriched_emails.append(email_dict)
-#
-    paginator = Paginator(emails, 10)
-    page_number = request.GET.get('page')
-    page_obj = paginator.get_page(page_number)
-
-    return render(request, 'emails/email_list.html', {'emails': enriched_emails, 'page_obj': page_obj})
-    #return render(request, 'emails/email_list.html', {'emails': emails, 'page_obj': page_obj})
 
 def get_fastapi_token():
     try:
@@ -1038,42 +746,6 @@ def check_and_update_database():
 
     logger.info("Controllo duplicati per indirizzo completato.")
 
-def check_and_update_database_():
-    """
-    Funzione per controllare e aggiornare i record nel database anche quando non ci sono nuove email da leggere.
-    """
-    # Ottieni tutti i record dal database
-    all_emails = EmailData.objects.all()
-
-    # Verifica se ci sono record duplicati basati sull'indirizzo
-    duplicates = (
-        EmailData.objects
-        .values('address')
-        .annotate(count=Count('id'))
-        .filter(count__gt=1)
-    )
-
-    for duplicate in duplicates:
-        address = duplicate['address']
-
-        # Ottieni tutti i record con lo stesso indirizzo
-        duplicate_records = EmailData.objects.filter(address=address)
-
-        # Imposta il primo record come 'In elaborazione' e il resto come 'Duplicato'
-        first_record = True
-        for record in duplicate_records:
-            if first_record:
-                record.status = '0'
-                first_record = False
-            else:
-                record.status = '1'
-
-            # Salva il record aggiornato
-            record.save()
-            logger.info(f"Updated record {record.id} with status: {record.status}")
-
-    logger.info("Database check and update completed.")
-
 # ricerca condizioni
 def search_emails_list(request):
     query = request.GET.get('q', '').strip()
@@ -1102,19 +774,6 @@ def search_emails_list(request):
     # Attenzione: dopo .order_by(), emails è ancora una QuerySet non valutata.
     # Se vuoi vedere anche il conteggio dei risultati:
     logger.debug(f"COUNT: {emails.count()}")  # questo valuta la query
-
-    return render(request, 'emails/email_list.html', {'emails': emails, 'query': query})
-
-def search_emails_list_(request):
-    query = request.GET.get('q')  # Recupera il parametro di ricerca dalla query string
-    emails = EmailData.objects.all()
-
-    if query:
-        # Filtra i risultati in base alla query di ricerca
-        emails = emails.filter(
-            Q(city__icontains=query) |
-            Q(address__icontains=query)
-        )
 
     return render(request, 'emails/email_list.html', {'emails': emails, 'query': query})
 
@@ -1167,27 +826,6 @@ def enrich_emails_with_social(emails, headers=None):
             email_dict['display_name'] = 'N/A'
         enriched.append(email_dict)
 
-    return enriched
-
-def enrich_emails_with_social_(emails, headers):
-    """Arricchisce le email con i dati social da FastAPI"""
-    enriched = []
-    for email in emails:
-        email_dict = dict(email)
-        try:
-            response = requests.get(
-                f"{settings.FASTAPI_BASE_URL}/users/me/rate-social",
-                params={'user_id': email_dict.get('user_id')},
-                headers=headers,
-                timeout=5
-            )
-            data = response.json() if response.status_code == 200 else {}
-            email_dict['social_type'] = data.get('social_type', 'Email')
-            email_dict['display_name'] = data.get('display_name', 'N/A')
-        except:
-            email_dict['social_type'] = 'Email'
-            email_dict['display_name'] = 'N/A'
-        enriched.append(email_dict)
     return enriched
 
 ## Detection face or plate
