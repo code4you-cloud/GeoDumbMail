@@ -16,6 +16,8 @@ psycopg2-binary = "2.9.9"
 sqlparse = "0.5.1"
 certifi = "^2024.8.30"
 requests = "^2.32.4"
+anthropic = "^1.2.0"
+python-dotenv = "^1.2.3"
 
 
 [build-system]
