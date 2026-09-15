@@ -9,6 +9,7 @@ import requests
 import datetime
 import json
 import time
+import socket
 
 import psycopg2
 
@@ -51,7 +52,7 @@ def fetch_unread_emails():
     context.set_ciphers('HIGH:!DH:!aNULL')
 
     # Connessione al server IMAP
-    mail = imaplib.IMAP4_SSL(settings.SERVER_IMAP, port=993, ssl_context=context)
+    mail = imaplib.IMAP4_SSL(settings.SERVER_IMAP, port=993, ssl_context=context, timeout=5)
     #mail = imaplib.IMAP4_SSL('in.citylog.cloud', port=993, ssl_context=context)
     mail.login(settings.MAIL_TO_GET_REPORT, settings.PWD_TO_GET_REPORT)  # Sostituisci con le tue credenziali
     mail.select('inbox')
@@ -362,22 +363,49 @@ def process_emails(request):
     max_retries = 2
 
     for attempt in range(max_retries):
-        try:
-            logger.info(f"Tentativo fetch email {attempt + 1}/{max_retries}")
-            mail, email_ids, unread_emails = fetch_unread_emails()
-            logger.info(f"Fetch completato: {len(unread_emails)} email trovate")
-            break
-        except Exception as e:
-            error_str = str(e)
-            if ("EOF" in error_str or "socket error" in error_str) and attempt < max_retries - 1:
-                logger.warning(f"Errore connessione, riprovo tra 2 secondi...")
-                time.sleep(2)
-                continue
-            else:
-                logger.error(f"Errore durante il fetch delle email: {str(e)}", exc_info=True)
-                messages.error(request, "Impossibile recuperare le email. Verifica le credenziali o riprova.")
-                return redirect('update_in_progress')
+         try:
+             logger.info(f"Tentativo fetch email {attempt + 1}/{max_retries}")
+             mail, email_ids, unread_emails = fetch_unread_emails() # ricordati il timeout=5 interno
+             logger.info(f"Fetch completato: {len(unread_emails)} email trovate")
+             break
 
+         except (ConnectionRefusedError, socket.timeout, TimeoutError, OSError, ssl.SSLError) as e:
+             # Errore specifico di rete (Server Zimbra in RESCUE o irraggiungibile)
+             logger.warning(f"Errore connessione/timeout IMAP (Tentativo {attempt + 1}): {str(e)}")
+
+             if attempt < max_retries - 1:
+                 time.sleep(2)
+                 continue
+             else:
+                 logger.error(f"Server Zimbra non raggiungibile dopo {max_retries} tentativi. Reindirizzamento a manutenzione.", exc_info=True)
+                 messages.error(
+                     request,
+                     "Il server di posta Zimbra non risponde (possibile modalità RESCUE o manutenzione)."
+                 )
+                 return redirect('update_in_progress')
+
+         except Exception as e:
+             # Altri errori generali (es. login errato, syntax error, etc.)
+             logger.error(f"Errore generico durante il fetch delle email: {str(e)}", exc_info=True)
+             messages.error(request, f"Impossibile recuperare le email: {str(e)}")
+             return redirect('update_in_progress')
+
+#        try:
+#            logger.info(f"Tentativo fetch email {attempt + 1}/{max_retries}")
+#            mail, email_ids, unread_emails = fetch_unread_emails()
+#            logger.info(f"Fetch completato: {len(unread_emails)} email trovate")
+#            break
+#        except Exception as e:
+#            error_str = str(e)
+#            if ("EOF" in error_str or "socket error" in error_str) and attempt < max_retries - 1:
+#                logger.warning(f"Errore connessione, riprovo tra 2 secondi...")
+#                time.sleep(2)
+#                continue
+#            else:
+#                logger.error(f"Errore durante il fetch delle email: {str(e)}", exc_info=True)
+#                messages.error(request, "Impossibile recuperare le email. Verifica le credenziali o riprova.")
+#                return redirect('update_in_progress')
+#
     # --- Step 1: Autenticazione servizio Django → FastAPI (una sola volta) ---
     try:
         auth_response = requests.post(
