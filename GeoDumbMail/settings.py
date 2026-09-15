@@ -13,6 +13,7 @@ https://docs.djangoproject.com/en/5.1/ref/settings/
 import certifi, os
 import logging
 
+from dotenv import load_dotenv
 from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -152,20 +153,21 @@ STATIC_ROOT = os.path.join(BASE_DIR, 'static')
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
-import ssl  # Aggiungi questa riga per importare il modulo ssl
-#import smtplib
-#import urllib.request
+# Carica le variabili dal file .env
+load_dotenv(BASE_DIR / '.env')
 
-EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_BACKEND = 'emails.email_backend.CustomEmailBackend'
+#EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 
-EMAIL_HOST = 'smtp.code4you.cloud'
-EMAIL_PORT = 587
-EMAIL_USE_TLS = True
+EMAIL_HOST = 'vps-e993bee2.vps.ovh.net'
+EMAIL_PORT = 465
+EMAIL_USE_TLS = False
+EMAIL_USE_SSL = True
 EMAIL_HOST_USER = 'info@citylog.cloud'
 EMAIL_HOST_PASSWORD = 'Blacking1'
-DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
-#DEFAULT_FROM_EMAIL = 'report@citylog.cloud'
+DEFAULT_FROM_EMAIL = 'info@citylog.cloud'
 
+import ssl
 ssl._create_default_https_context = ssl._create_unverified_context
 
 # Configura il contesto SSL ignorando la verifica per i test
@@ -210,32 +212,6 @@ LOGGING = {
         },
     },
 }
-
-LOGGING = {
-    'version': 1,
-    'disable_existing_loggers': False,
-    'handlers': {
-        'console': {
-            'class': 'logging.StreamHandler',
-        },
-    },
-    'root': {
-        'handlers': ['console'],
-        'level': 'DEBUG',  # Mostra tutti i log (DEBUG e superiori)
-    },
-    'loggers': {
-        'django': {
-            'handlers': ['console'],
-            'level': 'INFO',
-            'propagate': False,
-        },
-        'tuamodulodjango': {  # Sostituisci con il nome della tua app
-            'handlers': ['console'],
-            'level': 'DEBUG',  # Livello dettagliato per la tua app
-        },
-    },
-}
-
 
 # Use the custom storage backend
 DEFAULT_FILE_STORAGE = "custom_storage.backends.CustomRemoteStorage"
@@ -298,8 +274,8 @@ if not ANTHROPIC_API_KEY:
     )
 
 # scelta del motore LLM di Claude
-DETECTION_MODEL = os.environ.get('DETECTION_MODEL', 'claude-sonnet-4-6')
-#DETECTION_MODEL = os.environ.get('DETECTION_MODEL', 'claude-haiku-4-5-20251001')
+#DETECTION_MODEL = os.environ.get('DETECTION_MODEL', 'claude-sonnet-4-6')
+DETECTION_MODEL = os.environ.get('DETECTION_MODEL', 'claude-haiku-4-5-20251001')
 # Abilita l'attivazione dell'API ANTROPIC se ENABLE_ANTROPIC = True
 ENABLE_ANTROPIC = True
 
