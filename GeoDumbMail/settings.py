@@ -71,6 +71,7 @@ TEMPLATES = [
                 "django.template.context_processors.request",
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
+                "emails.context_processors.imap_server_info",
             ],
         },
     },
@@ -153,13 +154,14 @@ load_dotenv(BASE_DIR / '.env')
 EMAIL_BACKEND = 'emails.email_backend.CustomEmailBackend'
 #EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 
-EMAIL_HOST = 'vps-e993bee2.vps.ovh.net'
+EMAIL_HOST = 'mail.citylog.cloud'
+#EMAIL_HOST = 'vps-e993bee2.vps.ovh.net'
 EMAIL_PORT = 465
 EMAIL_USE_TLS = False
 EMAIL_USE_SSL = True
-EMAIL_HOST_USER = 'info@citylog.cloud'
-EMAIL_HOST_PASSWORD = 'Blacking1'
-DEFAULT_FROM_EMAIL = 'info@citylog.cloud'
+EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER')
+EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD')
+DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL')
 
 import ssl
 ssl._create_default_https_context = ssl._create_unverified_context
@@ -172,9 +174,19 @@ ssl._create_default_https_context = ssl._create_unverified_context
 #os.environ['SSL_CERT_FILE'] = certifi.where()
 #os.environ['SSL_CERT_FILE'] = '/etc/ssl/certs/cacert.pem'
 
-SERVER_IMAP = 'vps-e993bee2.vps.ovh.net'
+# Notifica del server IMAP in uso mail.citylog.cloud o vps-e993bee2.vps.ovh.net
+# nell'area alert-box del backend
+SERVER_IMAP = 'mail.citylog.cloud'
+#SERVER_IMAP = 'vps-e993bee2.vps.ovh.net' # original
 MAIL_TO_GET_REPORT = 'report@citylog.cloud'
-PWD_TO_GET_REPORT = 'Blacking1'
+PWD_TO_GET_REPORT = os.environ.get('PWD_TO_GET_REPORT')
+#PWD_TO_GET_REPORT = 'Blacking1'          # original
+
+# Notifica del server IMAP in uso mail.citylog.cloud o vps-e993bee2.vps.ovh.net
+# nell'area alert-box del backend
+#IMAP_HOST = "mail.citylog.cloud"
+IMAP_PROVIDER_NAME = "Zimbra primario"
+IMAP_SERVER_LABEL = f"{IMAP_PROVIDER_NAME} ({SERVER_IMAP})"
 
 EMAIL_USE_SSL = False
 
@@ -207,7 +219,7 @@ LOGGING = {
     },
 }
 
-# Use the custom storage backend
+# Package that stores remotly images to servers as > ws | ws1 | ws2
 DEFAULT_FILE_STORAGE = "custom_storage.backends.CustomRemoteStorage"
 
 # Parametri configurabili originali per il backend ufficiale immagini remote - proxmox
@@ -220,6 +232,7 @@ DEFAULT_FILE_STORAGE = "custom_storage.backends.CustomRemoteStorage"
 # 'primary'   → ws.citylog.cloud  (proxmox - in manutenzione)
 # 'secondary' → ws2.citylog.cloud (fallback attivoi openvz)
 
+# Gestione di multipli server storage remoti per le immagini
 REMOTE_STORAGE_ACTIVE_SERVER = 'primary'
 
 _REMOTE_STORAGE_SERVERS = {
@@ -248,12 +261,12 @@ REMOTE_STORAGE_UPLOAD_URL = _active['UPLOAD_URL']
 REMOTE_STORAGE_MEDIA_URL  = _active['MEDIA_URL']
 REMOTE_STORAGE_DELETE_URL = _active['DELETE_URL']
 
-# Direttive per accedere agli endpoint FastAPI
+# Server per accedere agli endpoint FastAPI - uficiale api2.citylog.cloud
 FASTAPI_BASE_URL = "https://api2.citylog.cloud/"
 #SERVICE_FACEBOOK_ID = "marco@example.com"
 #SERVICE_EMAIL = "marco@example.com"
 
-### ANTROPIC
+### ANTROPIC SETUP
 from dotenv import load_dotenv
 
 #load_dotenv()  # legge .env e popola os.environ
@@ -267,10 +280,10 @@ if not ANTHROPIC_API_KEY:
         "nella root del progetto con la chiave impostata."
     )
 
-# scelta del motore LLM di Claude
+# API LLM di Claude in uso
 #DETECTION_MODEL = os.environ.get('DETECTION_MODEL', 'claude-sonnet-4-6')
 DETECTION_MODEL = os.environ.get('DETECTION_MODEL', 'claude-haiku-4-5-20251001')
-# Abilita l'attivazione dell'API ANTROPIC se ENABLE_ANTROPIC = True
+# Abilita l'attivazione dell'API ANTROPIC
 ENABLE_ANTROPIC = True
 
 AUTHENTICATION_BACKENDS = [

@@ -390,22 +390,6 @@ def process_emails(request):
              messages.error(request, f"Impossibile recuperare le email: {str(e)}")
              return redirect('update_in_progress')
 
-#        try:
-#            logger.info(f"Tentativo fetch email {attempt + 1}/{max_retries}")
-#            mail, email_ids, unread_emails = fetch_unread_emails()
-#            logger.info(f"Fetch completato: {len(unread_emails)} email trovate")
-#            break
-#        except Exception as e:
-#            error_str = str(e)
-#            if ("EOF" in error_str or "socket error" in error_str) and attempt < max_retries - 1:
-#                logger.warning(f"Errore connessione, riprovo tra 2 secondi...")
-#                time.sleep(2)
-#                continue
-#            else:
-#                logger.error(f"Errore durante il fetch delle email: {str(e)}", exc_info=True)
-#                messages.error(request, "Impossibile recuperare le email. Verifica le credenziali o riprova.")
-#                return redirect('update_in_progress')
-#
     # --- Step 1: Autenticazione servizio Django → FastAPI (una sola volta) ---
     try:
         auth_response = requests.post(
@@ -441,7 +425,10 @@ def process_emails(request):
         paginator = Paginator(enriched_emails, 10)
         page_number = request.GET.get('page')
         page_obj = paginator.get_page(page_number)
-        return render(request, 'emails/email_list.html', {'emails': enriched_emails, 'page_obj': page_obj})
+
+        return render(request, 'emails/email_list.html', {
+            'emails': enriched_emails,
+            'page_obj': page_obj,})
 
     # --- Step 2: Estrai dati e invia direttamente a FastAPI ---
     sent_count = 0
@@ -535,7 +522,9 @@ def process_emails(request):
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
 
-    return render(request, 'emails/email_list.html', {'emails': enriched_emails, 'page_obj': page_obj})
+    return render(request, 'emails/email_list.html', {
+        'emails': enriched_emails,
+        'page_obj': page_obj,})
 
 def get_fastapi_token():
     try:
@@ -550,7 +539,7 @@ def get_fastapi_token():
         logger.error(f"Errore autenticazione FastAPI: {e}")
         return None
 
-def process_emails_EmailData(request):
+def process_emails_EmailData_(request):
     """
     Processa le email non lette:
     1. Recupera email dal server IMAP
@@ -796,6 +785,11 @@ def search_emails_list(request):
     # Ordinamento stabile (se hai image_time)
     emails = emails.order_by('-image_time', 'id')
 
+    # find pagination
+    paginator = Paginator(emails, 10)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+
     # Log della query SQL generata (solo se DEBUG=True)
     logger.debug(f"QUERY EMAILS: {str(emails.query)}")
 
@@ -803,7 +797,10 @@ def search_emails_list(request):
     # Se vuoi vedere anche il conteggio dei risultati:
     logger.debug(f"COUNT: {emails.count()}")  # questo valuta la query
 
-    return render(request, 'emails/email_list.html', {'emails': emails, 'query': query})
+    return render(request, 'emails/email_list.html', {
+        'emails': emails,
+        'page_obj': page_obj,
+        'query': query,})
 
 def update_typo(request, email_id):
     if request.method == 'POST':
@@ -919,5 +916,3 @@ def confirm_redaction(request, pk):
         'report': report,
         'boxes_json': json.dumps(boxes),
     })
-
-

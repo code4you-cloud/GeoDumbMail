@@ -4,27 +4,27 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Email Data</title>
+    <!-- Bootstrap CSS -->
     <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
 
     <style>
-        .table td.status-cell {
-            max-width: 120px;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-        }
-        /* Contenitore tabella con scroll proprio (orizzontale + verticale) */
+        /* ---- Contenitore tabella: scroll proprio (orizzontale + verticale) ----
+           Con max-height la barra orizzontale sta in fondo al contenitore,
+           quindi è sempre visibile senza scendere a fine pagina. */
         .table-scroll {
             max-height: 75vh;
             overflow: auto;
             -webkit-overflow-scrolling: touch;
             border: 1px solid #dee2e6;
         }
+
         .table-scroll .table {
             margin-bottom: 0;
             min-width: 760px;
         }
+
         @media (min-width: 1200px) {
             .table-scroll .table { min-width: 1100px; }
         }
@@ -44,11 +44,12 @@
             vertical-align: middle;
         }
 
-        /* Preview a dimensione fissa per tutte le righe */
+        /* ---- Preview: stessa struttura e stesse dimensioni per tutte le righe ---- */
         .table .preview-cell {
             width: 88px;
             padding: 4px !important;
         }
+
         .preview-box {
             width: 72px;
             height: 72px;
@@ -61,22 +62,27 @@
             color: #adb5bd;
             font-size: 0.75rem;
         }
+
         .preview-box a { display: block; width: 100%; height: 100%; }
+
         .preview-box img {
             display: block;
             width: 100%;
             height: 100%;
             object-fit: cover;
         }
+
+        /* Nessun URL immagine oppure immagine non caricabile: stesso placeholder */
         .preview-box.is-empty::before,
         .preview-box.is-broken::before { content: "n/d"; }
         .preview-box.is-broken a { display: none; }
 
-        /* Typo compatto */
+        /* ---- Typo compatto ---- */
         .table .typo-cell {
             white-space: nowrap;
             width: 1%;
         }
+
         .typo-form select {
             font-size: 0.8rem;
             padding: 0.15rem 0.3rem;
@@ -84,6 +90,7 @@
             width: 100%;
             min-width: 90px;
         }
+
         .typo-form button {
             font-size: 0.75rem;
             padding: 0.15rem 0.4rem;
@@ -91,6 +98,7 @@
             display: block;
             width: 100%;
         }
+
         .nowrap { white-space: nowrap; }
     </style>
 </head>
@@ -112,14 +120,13 @@
     </nav>
 
     <div class="container-fluid mt-4 px-3">
+        <!-- Messaggi Django -->
         {% if messages %}
         <div class="alert alert-info">
             <ul class="list-unstyled">
                 {% for message in messages %}
                 <li class="alert {{ message.tags }}">{{ message }}</li>
                 {% endfor %}
-                <i class="fas fa-server"></i>
-                Server IMAP configurato: <strong>{{ IMAP_SERVER_LABEL }}</strong>
             </ul>
         </div>
         {% endif %}
@@ -161,6 +168,7 @@
                     </tr>
                 </thead>
                 <tbody>
+                    {# Cicla su page_obj (NON sul queryset intero), altrimenti la paginazione non ha effetto #}
                     {% for email in page_obj %}
                     <tr class="{% if email.status == '1' %}text-muted{% endif %}">
                         <td>{{ email.id }}</td>
@@ -179,19 +187,18 @@
                             {{ email.latitude|default_if_none:"" }}<br>{{ email.longitude|default_if_none:"" }}
                         </td>
                         <td>{{ email.city|default_if_none:"" }}</td>
-                        <td>{{ email.address|default_if_none:"" }}</td>
-                        <td class="d-none d-xl-table-cell">
-                            {% if email.image_url %}
-                            <a href="{{ email.image_url }}" target="_blank" rel="noopener" title="Apri zoom immagine">{{ email.image_id|default_if_none:"" }}</a>
-                            {% else %}
-                                {{ email.image_id|default_if_none:"" }}
+                        <td>
+                            {{ email.address|default_if_none:"" }}
+                            {% if email.status == '0' and email.latitude and email.longitude %}
+                                <a href="https://maps.citylog.cloud/sample_leaflet.html?lat={{ email.latitude|urlencode }}&amp;lon={{ email.longitude|urlencode }}&amp;zoom=15&amp;address={{ email.address|default_if_none:''|urlencode }}{% if email.image_url %}&amp;image_url={{ email.image_url|urlencode }}{% endif %}"
+                                   target="_blank" rel="noopener" title="Apri sulla mappa" class="ml-1">
+                                    <i class="fas fa-map-marker-alt"></i>
+                                </a>
                             {% endif %}
                         </td>
+                        <td class="d-none d-xl-table-cell">{{ email.image_id|default_if_none:"" }}</td>
                         <td class="d-none d-xl-table-cell nowrap">{{ email.image_time }}</td>
-                        <td class="status-cell">
-                            <span class="truncate" title="{{ email.status }}">{{ email.status }}</span>
-                        </td>
-                        <!--td>{{ email.status }}</td-->
+                        <td>{{ email.status }}</td>
                         <td>
                             <span class="badge {% if email.quartiere %}badge-secondary{% else %}badge-danger{% endif %}">
                                 {{ email.quartiere|default:"Non specificato" }}
@@ -201,18 +208,11 @@
                         <td class="preview-cell">
                             <div class="preview-box{% if not email.image_url %} is-empty{% endif %}">
                                 {% if email.image_url %}
-                                    {% if email.latitude and email.longitude %}
-                                    <a href="https://maps.citylog.cloud/sample_leaflet.html?lat={{ email.latitude|urlencode }}&amp;lon={{ email.longitude|urlencode }}&amp;zoom=15&amp;address={{ email.address|urlencode }}&amp;image_url={{ email.image_url|urlencode }}"
-                                       target="_blank" rel="noopener" title="Apri sulla mappa">
-                                        <img src="{{ email.image_url }}" alt="Anteprima segnalazione {{ email.id }}"
-                                             loading="lazy"
-                                             onerror="this.closest('.preview-box').classList.add('is-broken')">
-                                    </a>
-                                    {% else %}
-                                        <img src="{{ email.image_url }}" alt="Anteprima segnalazione {{ email.id }}"
-                                             loading="lazy"
-                                             onerror="this.closest('.preview-box').classList.add('is-broken')">
-                                    {% endif %}
+                                <a href="{{ email.image_url }}" target="_blank" rel="noopener">
+                                    <img src="{{ email.image_url }}" alt="Anteprima segnalazione {{ email.id }}"
+                                         loading="lazy"
+                                         onerror="this.closest('.preview-box').classList.add('is-broken')">
+                                </a>
                                 {% endif %}
                             </div>
                         </td>
@@ -256,6 +256,7 @@
                     <li class="page-item disabled"><span class="page-link">Precedente</span></li>
                 {% endif %}
 
+                {# Finestra di 2 pagine per lato attorno alla corrente #}
                 {% for n in page_obj.paginator.page_range %}
                     {% if n == page_obj.number %}
                         <li class="page-item active"><span class="page-link">{{ n }} <span class="sr-only">(current)</span></span></li>
@@ -277,6 +278,7 @@
         {% endif %}
     </div>
 
+    <!-- Bootstrap 4 JS: il bundle include Popper 1.x (quello di @popperjs/core v2 non è compatibile con BS4) -->
     <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
     <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.bundle.min.js"></script>
 </body>
