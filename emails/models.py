@@ -1,8 +1,16 @@
 from django.db import models
-from django.utils.html import mark_safe
+from django.utils.html import mark_safe, format_html
 
 from emails.fields import RemoteImageField
 from custom_storage.backends import CustomRemoteStorage
+
+import logging
+from io import BytesIO
+
+from django.core.files.base import ContentFile
+from PIL import Image, ImageOps
+
+logger = logging.getLogger(__name__)
 
 # Create your models here.
 # emails/models.py
@@ -46,6 +54,10 @@ class EmailData(models.Model):
 
     latitude = models.CharField(max_length=50, blank=True, null=True)
     longitude = models.CharField(max_length=50, blank=True, null=True)
+    #refactoring_latlon
+    latitude_float = models.FloatField(null=True, blank=True, db_index=True)
+    longitude_float = models.FloatField(null=True, blank=True, db_index=True)
+    #end
     city = models.CharField(max_length=100, blank=True, null=True)
     address = models.TextField(blank=True, null=True)
     image_time = models.DateTimeField(null=True, blank=True)
@@ -90,6 +102,32 @@ class EmailData(models.Model):
 
     # Correct orientation
     def save(self, *args, **kwargs):
+        if self.image_file and hasattr(self.image_file, "file"):
+            try:
+                img = Image.open(self.image_file)
+                rotated_img = ImageOps.exif_transpose(img)
+
+                if rotated_img is not img:  # solo se c'era un tag EXIF di orientamento da correggere
+                    img_format = (img.format or "JPEG").upper()
+
+                    if img_format in ("JPEG", "JPG") and rotated_img.mode in ("RGBA", "P"):
+                        rotated_img = rotated_img.convert("RGB")
+
+                    buffer = BytesIO()
+                    if img_format in ("JPEG", "JPG"):
+                        rotated_img.save(buffer, format=img_format, quality=90, optimize=True)
+                    else:
+                        rotated_img.save(buffer, format=img_format)
+                    buffer.seek(0)
+
+                    self.image_file = ContentFile(buffer.read(), name=self.image_file.name)
+            except Exception:
+                logger.exception("Errore rotazione EXIF per segnalazione id=%s", self.pk)
+
+        super().save(*args, **kwargs)
+
+    # Correct orientation
+    def save_(self, *args, **kwargs):
         # 1. Intercetta il file durante l'upload/creazione (quando c'è un file e non è ancora salvato su disco)
         if self.image_file and hasattr(self.image_file, "file"):
             try:
