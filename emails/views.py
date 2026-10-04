@@ -41,6 +41,11 @@ from django.contrib.auth.decorators import login_required
 from emails.services.redaction import apply_redaction
 from .models import EmailData, Users, RedactionBox  # Importa il modello se hai definito uno in models.py
 
+#rotate_image
+from django.views.decorators.http import require_POST
+from io import BytesIO
+from PIL import Image
+
 # Configura il logger
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
@@ -100,6 +105,11 @@ def parse_email_content(email_message):
 
             # Usa ContentFile invece di scrivere su disco
             content_file = ContentFile(image_data, name=image_filename)
+
+            # --- nuovo: organizzazione per anno/mese ---
+            #now = timezone.now()
+            #dated_path = f"{now.year:04d}/{now.month:02d}/{image_filename}"
+            #image_instance.image_file.save(dated_path, content_file, save=False)
 
             # Salva direttamente sul modello usando lo storage configurato
             image_instance.image_file.save(image_filename, content_file, save=False)
@@ -916,3 +926,30 @@ def confirm_redaction(request, pk):
         'report': report,
         'boxes_json': json.dumps(boxes),
     })
+
+@require_POST
+def rotate_image(request, pk):
+    obj = get_object_or_404(EmailData, pk=pk)
+    degrees = int(request.POST.get("degrees", 90))  # 90, 180, 270
+
+    img = Image.open(obj.image_file)
+    rotated_img = img.rotate(-degrees, expand=True)
+
+    img_format = (img.format or "JPEG").upper()
+    if img_format in ("JPEG", "JPG") and rotated_img.mode in ("RGBA", "P"):
+        rotated_img = rotated_img.convert("RGB")
+
+    buffer = BytesIO()
+    if img_format in ("JPEG", "JPG"):
+        rotated_img.save(buffer, format=img_format, quality=90, optimize=True)
+    else:
+        rotated_img.save(buffer, format=img_format)
+    buffer.seek(0)
+
+    old_name = obj.image_file.name
+    obj.image_file.storage.delete(old_name)
+    obj.image_file = ContentFile(buffer.read(), name=old_name)
+    obj.save()
+
+    next_url = request.POST.get("next") or "search_emails_list"
+    return redirect(next_url)
