@@ -10,4 +10,6 @@ urlpatterns = [
     #face and plate detected
     path('review/', views.review_queue, name='review_queue'),
     path('review/<int:pk>/', views.confirm_redaction, name='confirm_redaction'),
+    #rotate_image
+    path('rotate-image/<int:pk>/', views.rotate_image, name='rotate_image'),
 ]

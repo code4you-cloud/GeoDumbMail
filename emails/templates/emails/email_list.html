@@ -44,7 +44,7 @@
             vertical-align: middle;
         }
 
-        /* Preview a dimensione fissa per tutte le righe */
+        /* Preview a dimensione fissa per tutte le righe (dimensioni originali) */
         .table .preview-cell {
             width: 88px;
             padding: 4px !important;
@@ -91,6 +91,29 @@
             display: block;
             width: 100%;
         }
+
+        /* Status_int compatta: contiene solo un numero breve */
+        .table .status-int-cell {
+            width: 60px;
+            max-width: 60px;
+            text-align: center;
+            white-space: nowrap;
+        }
+
+        /* Bottoni di rotazione, dentro la cella Typo (più larga, non forza lo scroll) */
+        .rotate-actions {
+            display: flex;
+            gap: 3px;
+            margin-bottom: 0.25rem;
+        }
+        .rotate-actions form { flex: 1; margin: 0; }
+        .rotate-actions button {
+            width: 100%;
+            padding: 0.1rem 0;
+            font-size: 0.7rem;
+            line-height: 1.2;
+        }
+
         .nowrap { white-space: nowrap; }
     </style>
 </head>
@@ -155,7 +178,7 @@
                         <th class="d-none d-xl-table-cell">ImageTime</th>
                         <th>Status</th>
                         <th>Quartiere</th>
-                        <th class="d-none d-xl-table-cell">Status_int</th>
+                        <th class="d-none d-xl-table-cell status-int-cell">St_int</th>
                         <th>Preview</th>
                         <th>Typo</th>
                     </tr>
@@ -191,13 +214,12 @@
                         <td class="status-cell">
                             <span class="truncate" title="{{ email.status }}">{{ email.status }}</span>
                         </td>
-                        <!--td>{{ email.status }}</td-->
                         <td>
                             <span class="badge {% if email.quartiere %}badge-secondary{% else %}badge-danger{% endif %}">
                                 {{ email.quartiere|default:"Non specificato" }}
                             </span>
                         </td>
-                        <td class="d-none d-xl-table-cell">{{ email.status_int }}</td>
+                        <td class="d-none d-xl-table-cell status-int-cell">{{ email.status_int }}</td>
                         <td class="preview-cell">
                             <div class="preview-box{% if not email.image_url %} is-empty{% endif %}">
                                 {% if email.image_url %}
@@ -217,6 +239,26 @@
                             </div>
                         </td>
                         <td class="typo-cell">
+                            {% if email.image_url %}
+                            <div class="rotate-actions">
+                                <form method="POST" action="{% url 'rotate_image' email.id %}">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="degrees" value="90">
+                                    <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                                    <button type="submit" class="btn btn-outline-secondary" title="Ruota 90°">
+                                        <i class="fas fa-redo"></i> 90°
+                                    </button>
+                                </form>
+                                <form method="POST" action="{% url 'rotate_image' email.id %}">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="degrees" value="180">
+                                    <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                                    <button type="submit" class="btn btn-outline-secondary" title="Ruota 180°">
+                                        <i class="fas fa-sync-alt"></i> 180°
+                                    </button>
+                                </form>
+                            </div>
+                            {% endif %}
                             <form method="POST" action="{% url 'update_typo' email.id %}" class="typo-form">
                                 {% csrf_token %}
                                 <input type="hidden" name="next" value="{{ request.get_full_path }}">
